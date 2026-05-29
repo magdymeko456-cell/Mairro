@@ -19,9 +19,9 @@ android {
         jvmTarget = "17"  
     }  
       
-    lintOptions {  
-        abortOnError false  
-        checkReleaseBuilds false  
+    lint {  
+        abortOnError = false  
+        checkReleaseBuilds = false  
     }  
       
     defaultConfig {  
