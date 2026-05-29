@@ -21,24 +21,39 @@ content = re.sub(r'targetSdk\s+\d+', 'targetSdk = 35', content)
 content = re.sub(r'compileSdkVersion\s+\d+', 'compileSdkVersion = 36', content)
 content = re.sub(r'targetSdkVersion\s+\d+', 'targetSdkVersion = 35', content)
 
-# 3. Force isMinifyEnabled to false wherever it appears
+# 3. Replace deprecated kotlinOptions with compilerOptions
+# Match the entire kotlinOptions block
+old_pattern = r'kotlinOptions\s*\{[^}]*\}'
+if re.search(old_pattern, content):
+    # Replace with the new compilerOptions DSL
+    content = re.sub(
+        old_pattern,
+        '''compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8
+    }''',
+        content,
+        flags=re.DOTALL
+    )
+    print("✓ Replaced deprecated kotlinOptions with compilerOptions")
+
+# 4. Force isMinifyEnabled to false wherever it appears
 content = content.replace('isMinifyEnabled = true', 'isMinifyEnabled = false')
 
-# 4. If no isMinifyEnabled found at all, add it
+# 5. If no isMinifyEnabled found at all, add it
 if 'isMinifyEnabled' not in content:
     content = content.replace(
         'signingConfig = signingConfigs.debug',
         'signingConfig = signingConfigs.debug\n            isMinifyEnabled = false'
     )
 
-# 5. Add proguardFiles with ML Kit keep rules
+# 6. Add proguardFiles with ML Kit keep rules
 if 'proguardFiles' not in content:
     content = content.replace(
         'isMinifyEnabled = false',
         'isMinifyEnabled = false\n            proguardFiles(\n                getDefaultProguardFile("proguard-android-optimize.txt"),\n                "proguard-rules.pro"\n            )'
     )
 
-# 6. Add shrinkResources = false
+# 7. Add shrinkResources = false
 content = content.replace('shrinkResources = true', 'shrinkResources = false')
 if 'shrinkResources' not in content:
     content = content.replace(
@@ -46,19 +61,51 @@ if 'shrinkResources' not in content:
         'isMinifyEnabled = false\n            shrinkResources = false'
     )
 
+# 8. Remove any double equals (==) and replace with single equals (=)
+content = re.sub(r'(\w+)\s*==\s*(\d+|"[^"]*")', r'\1 = \2', content)
+
+# 9. Ensure proper Kotlin syntax for assignments
+content = re.sub(r'(\w+)\s+(\d+)', r'\1 = \2', content)
+
 with open(filepath, 'w') as f:
     f.write(content)
 
-# تظبيط قواعد Proguard لـ ML Kit لحل مشكلة الكلاسات المفقودة تماماً
+print(f"✓ Patched {filepath}")
+
+# Create comprehensive proguard rules for ML Kit and other libraries
 proguard_path = os.path.join(os.path.dirname(filepath), 'proguard-rules.pro')
 with open(proguard_path, 'w') as f:
     f.write('''# ML Kit rules
 -keep class com.google.mlkit.** { *; }
 -dontwarn com.google.mlkit.**
 
-# تجاهل أخطاء الكلاسات المفقودة للغات الإضافية أثناء الـ Minification
+# Firebase rules
+-keep class com.google.firebase.** { *; }
+-dontwarn com.google.firebase.**
+
+# Google Play Services rules
+-keep class com.google.android.gms.** { *; }
+-dontwarn com.google.android.gms.**
+
+# Kotlin stdlib rules
+-keep class kotlin.** { *; }
+-keep class kotlinx.** { *; }
+-dontwarn kotlin.**
+-dontwarn kotlinx.**
+
+# Flutter rules
+-keep class io.flutter.** { *; }
+-dontwarn io.flutter.**
+
+# General rules
 -ignorewarnings
+-optimizationpasses 5
+-dontusemixedcaseclassnames
+-verbose
+
+# Keep line numbers for debugging
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
 ''')
 
-print(f"Patched {filepath}")
-print(f"Created {proguard_path}")
+print(f"✓ Created comprehensive {proguard_path}")
