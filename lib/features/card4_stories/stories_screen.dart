@@ -265,65 +265,24 @@ class _StoriesScreenState extends State<StoriesScreen> with TickerProviderStateM
       itemCount: _stories.length,  
       itemBuilder: (context, index) {  
         final story = _stories[index];  
-        return _buildRevelationCard(  
-          title: story['title'] ?? '',  
-          beforeRevelation: _getBeforeRevelation(story['title'] ?? ''),  
-          afterRevelation: _getAfterRevelation(story['title'] ?? ''),  
-          icon: Icons.menu_book,  
-          color: Colors.greenAccent,  
-        );  
+        return _buildRevelationCard(story);  
       },  
     );  
   }  
   
-  String _getBeforeRevelation(String title) {  
-    final Map<String, String> beforeRevelations = {  
-      'قصة يوسف': 'كان بنو إسرائيل في مصر يعيشون في ظلم الفراعنة، وكانوا بحاجة إلى هداية الله',  
-      'قصة موسى': 'كان بنو إسرائيل مستعبدين في مصر، وكان فرعون طاغية متكبر',  
-      'قصة عيسى': 'كان بنو إسرائيل قد انحرفوا عن الشريعة، وكانوا بحاجة إلى رسالة جديدة',  
-      'قصة محمد': 'كانت العرب في جاهلية، يعبدون الأصنام ويقتلون البنات',  
-      'قصة إبراهيم': 'كان قومه يعبدون الأصنام والكواكب',  
-      'قصة نوح': 'كان قومه قد غرقوا في الضلال والشرك',  
-      'قصة لوط': 'كان قومه يرتكبون الفاحشة',  
-      'قصة صالح': 'كان قوم ثمود يعبدون الأصنام ويظلمون',  
-      'قصة هود': 'كان قوم عاد متكبرين طغاة',  
-      'قصة أيوب': 'كان ابتلاءً من الله لاختبار صبره',  
-    };  
-    return beforeRevelations[title] ?? 'كان الناس في ضلال واحتاجوا إلى هداية الله';  
-  }  
+  Widget _buildRevelationCard(Map<String, dynamic> story) {  
+    final beforeRevelation = _getBeforeRevelation(story);  
+    final afterRevelation = _getAfterRevelation(story);  
   
-  String _getAfterRevelation(String title) {  
-    final Map<String, String> afterRevelations = {  
-      'قصة يوسف': 'أنزل الله سورة يوسف لتعليم الصبر والحكمة والتوكل على الله',  
-      'قصة موسى': 'أنزل الله التوراة وأرسل موسى لإنقاذ بني إسرائيل من الظلم',  
-      'قصة عيسى': 'أنزل الله الإنجيل وبعث عيسى لهداية بني إسرائيل',  
-      'قصة محمد': 'أنزل الله القرآن الكريم ليخرج الناس من الظلمات إلى النور',  
-      'قصة إبراهيم': 'جعله الله إماماً للناس وأبو الأنبياء',  
-      'قصة نوح': 'نجاه الله ومن معه في السفينة وأغرق الكافرين',  
-      'قصة لوط': 'أنجاه الله وأهلك قومه المجرمين',  
-      'قصة صالح': 'أنجاه الله وأهلك قومه الظالمين',  
-      'قصة هود': 'أنجاه الله وأهلك قومه المتكبرين',  
-      'قصة أيوب': 'شفاه الله ورد عليه صحته وماله',  
-    };  
-    return afterRevelations[title] ?? 'أنزل الله الآيات لهداية الناس وإخراجهم من الظلمات';  
-  }  
-  
-  Widget _buildRevelationCard({  
-    required String title,  
-    required String beforeRevelation,  
-    required String afterRevelation,  
-    required IconData icon,  
-    required Color color,  
-  }) {  
     return Container(  
       margin: const EdgeInsets.only(bottom: 20),  
       padding: const EdgeInsets.all(20),  
       decoration: BoxDecoration(  
         color: Colors.white.withOpacity(0.05),  
         borderRadius: BorderRadius.circular(20),  
-        border: Border.all(color: color.withOpacity(0.3)),  
+        border: Border.all(color: Colors.purple.withOpacity(0.3)),  
         boxShadow: [  
-          BoxShadow(color: color.withOpacity(0.05), blurRadius: 10, spreadRadius: 1)  
+          BoxShadow(color: Colors.purple.withOpacity(0.05), blurRadius: 10, spreadRadius: 1)  
         ],  
       ),  
       child: Column(  
@@ -333,56 +292,108 @@ class _StoriesScreenState extends State<StoriesScreen> with TickerProviderStateM
             children: [  
               Container(  
                 padding: const EdgeInsets.all(8),  
-                decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),  
-                child: Icon(icon, color: color, size: 24),  
+                decoration: BoxDecoration(color: Colors.purple.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),  
+                child: const Icon(Icons.book, color: Colors.purple, size: 24),  
               ),  
               const SizedBox(width: 15),  
               Expanded(  
-                child: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),  
+                child: Text(story['title'] ?? '', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),  
               ),  
             ],  
           ),  
           const SizedBox(height: 20),  
-          _buildRevelationSection('قبل النزول', beforeRevelation, Colors.redAccent),  
-          const SizedBox(height: 15),  
-          _buildRevelationSection('بعد النزول', afterRevelation, Colors.greenAccent),  
+          if (beforeRevelation.isNotEmpty) ...[  
+            Container(  
+              padding: const EdgeInsets.all(15),  
+              decoration: BoxDecoration(  
+                color: Colors.red.withOpacity(0.1),  
+                borderRadius: BorderRadius.circular(12),  
+                border: Border.all(color: Colors.red.withOpacity(0.3)),  
+              ),  
+              child: Column(  
+                crossAxisAlignment: CrossAxisAlignment.start,  
+                children: [  
+                  Row(  
+                    children: [  
+                      const Icon(Icons.arrow_downward, color: Colors.red, size: 20),  
+                      const SizedBox(width: 8),  
+                      const Text('قبل النزول', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 16)),  
+                    ],  
+                  ),  
+                  const SizedBox(height: 10),  
+                  Text(beforeRevelation, style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.6)),  
+                ],  
+              ),  
+            ),  
+            const SizedBox(height: 15),  
+          ],  
+          if (afterRevelation.isNotEmpty) ...[  
+            Container(  
+              padding: const EdgeInsets.all(15),  
+              decoration: BoxDecoration(  
+                color: Colors.green.withOpacity(0.1),  
+                borderRadius: BorderRadius.circular(12),  
+                border: Border.all(color: Colors.green.withOpacity(0.3)),  
+              ),  
+              child: Column(  
+                crossAxisAlignment: CrossAxisAlignment.start,  
+                children: [  
+                  Row(  
+                    children: [  
+                      const Icon(Icons.arrow_upward, color: Colors.green, size: 20),  
+                      const SizedBox(width: 8),  
+                      const Text('بعد النزول', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 16)),  
+                    ],  
+                  ),  
+                  const SizedBox(height: 10),  
+                  Text(afterRevelation, style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.6)),  
+                ],  
+              ),  
+            ),  
+          ],  
         ],  
       ),  
     );  
   }  
   
-  Widget _buildRevelationSection(String title, String content, Color color) {  
-    return Container(  
-      padding: const EdgeInsets.all(15),  
-      decoration: BoxDecoration(  
-        color: color.withOpacity(0.1),  
-        borderRadius: BorderRadius.circular(12),  
-        border: Border.all(color: color.withOpacity(0.3)),  
-      ),  
-      child: Column(  
-        crossAxisAlignment: CrossAxisAlignment.start,  
-        children: [  
-          Text(  
-            title,  
-            style: TextStyle(  
-              color: color,  
-              fontSize: 16,  
-              fontWeight: FontWeight.bold,  
-            ),  
-          ),  
-          const SizedBox(height: 8),  
-          Text(  
-            content,  
-            style: TextStyle(  
-              color: Colors.white.withOpacity(0.9),  
-              fontSize: 15,  
-              height: 1.6,  
-            ),  
-            textDirection: TextDirection.rtl,  
-          ),  
-        ],  
-      ),  
-    );  
+  String _getBeforeRevelation(Map<String, dynamic> story) {  
+    final title = story['title']?.toLowerCase() ?? '';  
+      
+    if (title.contains('يوسف')) {  
+      return 'كانت الأحلام في المجتمع العربي الجاهلي تُعتبر من الكهانة والسحر، وكان الناس يستهزئون بالرائي ويتهمونه بالكذب أو الجنون.';  
+    } else if (title.contains('مريم')) {  
+      return 'كانت المرأة في المجتمع العربي تُعتبر عاراً إذا أنجبت بنتاً، وكانوا يئدون البنات خجلاً.';  
+    } else if (title.contains('إبراهيم')) {  
+      return 'كان الناس يعبدون الأصنام والكواكب، وكان إبراهيم الوحيد الذي يبحث عن الحقيقة.';  
+    } else if (title.contains('موسى')) {  
+      return 'كان بنو إسرائيل يعيشون تحت ظلم فرعون واستعباده، وكانوا يُقتل أبناؤهم وتُستحيا نساؤهم.';  
+    } else if (title.contains('عيسى')) {  
+      return 'كان بنو إسرائيل قد انحرفوا عن شريعة موسى، وكانوا ينتظرون المخلص.';  
+    } else if (title.contains('محمد')) {  
+      return 'كانت الجزيرة العربية في جاهلية عميقة، يعبدون الأصنام ويشربون الخمر ويئدون البنات.';  
+    }  
+      
+    return 'سيتم إضافة معلومات أسباب النزول لهذه القصة قريباً.';  
+  }  
+  
+  String _getAfterRevelation(Map<String, dynamic> story) {  
+    final title = story['title']?.toLowerCase() ?? '';  
+      
+    if (title.contains('يوسف')) {  
+      return 'أصبحت الأحلام وسيلة من وسائل الوحي الإلهي، وأصبح تفسير الأحلام علماً شرعياً يعتمد على الإيمان واليقين.';  
+    } else if (title.contains('مريم')) {  
+      return 'أكرم الإسلام المرأة ورفع شأنها، وجعل الجنة تحت أقدام الأمهات.';  
+    } else if (title.contains('إبراهيم')) {  
+      return 'أصبح التوحيد هو أساس الدين، وأصبح إبراهيم أبا الأنبياء جميعاً.';  
+    } else if (title.contains('موسى')) {  
+      return 'أنقذ الله بني إسرائيل من ظلم فرعون، وأعزهم بعد ذل.';  
+    } else if (title.contains('عيسى')) {  
+      return 'جاء عيسى ليتمم شريعة موسى وليدعو إلى التوحيد والرحمة.';  
+    } else if (title.contains('محمد')) {  
+      return 'أخرج الله بهذه الأمة من الظلمات إلى النور، وحولهم من أمة أمية إلى خير أمة أخرجت للناس.';  
+    }  
+      
+    return 'سيتم إضافة معلومات أسباب النزول لهذه القصة قريباً.';  
   }  
   
   Widget _buildInspirationTab() {  
@@ -483,68 +494,69 @@ class _StoriesScreenState extends State<StoriesScreen> with TickerProviderStateM
       child: Container(  
         margin: const EdgeInsets.only(bottom: 20),  
         padding: const EdgeInsets.all(20),  
-      decoration: BoxDecoration(  
-        color: Colors.white.withOpacity(0.05),  
-        borderRadius: BorderRadius.circular(20),  
-        border: Border.all(color: color.withOpacity(0.3)),  
-        boxShadow: [  
-          BoxShadow(color: color.withOpacity(0.05), blurRadius: 10, spreadRadius: 1)  
-        ],  
-      ),  
-      child: Column(  
-        crossAxisAlignment: CrossAxisAlignment.start,  
-        children: [  
-          Row(  
-            children: [  
-              Container(  
-                padding: const EdgeInsets.all(8),  
-                decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),  
-                child: Icon(icon, color: color, size: 24),  
-              ),  
-              const SizedBox(width: 15),  
-              Expanded(  
-                child: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),  
-              ),  
-            ],  
-          ),  
-          const SizedBox(height: 12),  
-          Text(subtitle, style: TextStyle(color: color.withOpacity(0.8), fontSize: 13, fontWeight: FontWeight.w500)),  
-          const SizedBox(height: 15),  
-          Text(  
-            content,  
-            style: TextStyle(  
-              color: Colors.white.withOpacity(0.9),   
-              fontSize: isHadith ? 20 : 16,  
-              height: 1.6,  
-              fontWeight: isHadith ? FontWeight.w500 : FontWeight.normal,  
+        decoration: BoxDecoration(  
+          color: Colors.white.withOpacity(0.05),  
+          borderRadius: BorderRadius.circular(20),  
+          border: Border.all(color: color.withOpacity(0.3)),  
+          boxShadow: [  
+            BoxShadow(color: color.withOpacity(0.05), blurRadius: 10, spreadRadius: 1)  
+          ],  
+        ),  
+        child: Column(  
+          crossAxisAlignment: CrossAxisAlignment.start,  
+          children: [  
+            Row(  
+              children: [  
+                Container(  
+                  padding: const EdgeInsets.all(8),  
+                  decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),  
+                  child: Icon(icon, color: color, size: 24),  
+                ),  
+                const SizedBox(width: 15),  
+                Expanded(  
+                  child: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),  
+                ),  
+              ],  
             ),  
-            textDirection: TextDirection.rtl,  
-          ),  
-          const SizedBox(height: 20),  
-          Row(  
-            mainAxisAlignment: MainAxisAlignment.end,  
-            children: [  
-              if (showVideoBtn)  
-                TextButton.icon(  
-                  onPressed: () {  
-                    ScaffoldMessenger.of(context).showSnackBar(  
-                      const SnackBar(content: Text('سيتم توليد فيديو مبهر مدته 10-15 دقيقة (نسخة برو)')),  
-                    );  
-                  },  
-                  icon: const Icon(Icons.movie_creation, color: Colors.redAccent),  
-                  label: const Text('مشاهدة', style: TextStyle(color: Colors.redAccent)),  
-                ),  
-              if (showListenBtn)  
-                TextButton.icon(  
-                  onPressed: () {  
-                    Provider.of<TTSService>(context, listen: false).speak(content);  
-                  },  
-                  icon: const Icon(Icons.volume_up, color: Colors.blueAccent),  
-                  label: const Text('استماع', style: TextStyle(color: Colors.blueAccent)),  
-                ),  
-            ],  
-          ),  
-        ],  
+            const SizedBox(height: 12),  
+            Text(subtitle, style: TextStyle(color: color.withOpacity(0.8), fontSize: 13, fontWeight: FontWeight.w500)),  
+            const SizedBox(height: 15),  
+            Text(  
+              content,  
+              style: TextStyle(  
+                color: Colors.white.withOpacity(0.9),   
+                fontSize: isHadith ? 20 : 16,  
+                height: 1.6,  
+                fontWeight: isHadith ? FontWeight.w500 : FontWeight.normal,  
+              ),  
+              textDirection: TextDirection.rtl,  
+            ),  
+            const SizedBox(height: 20),  
+            Row(  
+              mainAxisAlignment: MainAxisAlignment.end,  
+              children: [  
+                if (showVideoBtn)  
+                  TextButton.icon(  
+                    onPressed: () {  
+                      ScaffoldMessenger.of(context).showSnackBar(  
+                        const SnackBar(content: Text('سيتم توليد فيديو مبهر مدته 10-15 دقيقة (نسخة برو)')),  
+                      );  
+                    },  
+                    icon: const Icon(Icons.movie_creation, color: Colors.redAccent),  
+                    label: const Text('مشاهدة', style: TextStyle(color: Colors.redAccent)),  
+                  ),  
+                if (showListenBtn)  
+                  TextButton.icon(  
+                    onPressed: () {  
+                      Provider.of<TTSService>(context, listen: false).speak(content);  
+                    },  
+                    icon: const Icon(Icons.volume_up, color: Colors.blueAccent),  
+                    label: const Text('استماع', style: TextStyle(color: Colors.blueAccent)),  
+                  ),  
+              ],  
+            ),  
+          ],  
+        ),  
       ),  
     );  
   }  
