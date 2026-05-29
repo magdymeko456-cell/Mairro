@@ -21,20 +21,25 @@ content = re.sub(r'targetSdk\s+\d+', 'targetSdk = 35', content)
 content = re.sub(r'compileSdkVersion\s+\d+', 'compileSdkVersion = 36', content)
 content = re.sub(r'targetSdkVersion\s+\d+', 'targetSdkVersion = 35', content)
 
-# 3. Replace deprecated kotlinOptions with compilerOptions
-# Match the entire kotlinOptions block
-old_pattern = r'kotlinOptions\s*\{[^}]*\}'
-if re.search(old_pattern, content):
-    # Replace with the new compilerOptions DSL
-    content = re.sub(
-        old_pattern,
-        '''compilerOptions {
+# 3. Replace deprecated kotlinOptions with compilerOptions - FIX THIS FIRST
+# Match the entire kotlinOptions block with all variations
+old_patterns = [
+    r'kotlinOptions\s*\{[^}]*jvmTarget\s*=\s*["\']?[\d.]+["\']?[^}]*\}',
+    r'kotlinOptions\s*\{[^}]*\}',
+]
+
+for pattern in old_patterns:
+    if re.search(pattern, content, re.DOTALL):
+        content = re.sub(
+            pattern,
+            '''compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8
     }''',
-        content,
-        flags=re.DOTALL
-    )
-    print("✓ Replaced deprecated kotlinOptions with compilerOptions")
+            content,
+            flags=re.DOTALL
+        )
+        print("✓ Replaced deprecated kotlinOptions with compilerOptions")
+        break
 
 # 4. Force isMinifyEnabled to false wherever it appears
 content = content.replace('isMinifyEnabled = true', 'isMinifyEnabled = false')
@@ -65,7 +70,7 @@ if 'shrinkResources' not in content:
 content = re.sub(r'(\w+)\s*==\s*(\d+|"[^"]*")', r'\1 = \2', content)
 
 # 9. Ensure proper Kotlin syntax for assignments
-content = re.sub(r'(\w+)\s+(\d+)', r'\1 = \2', content)
+content = re.sub(r'(\w+)\s+(\d+)(?!\w)', r'\1 = \2', content)
 
 with open(filepath, 'w') as f:
     f.write(content)
