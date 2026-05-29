@@ -30,7 +30,7 @@ class _StoriesScreenState extends State<StoriesScreen> with TickerProviderStateM
   @override  
   void initState() {  
     super.initState();  
-    _tabController = TabController(length: 3, vsync: this);  
+    _tabController = TabController(length: 4, vsync: this);  
     _loadData();  
   }  
   
@@ -162,6 +162,7 @@ class _StoriesScreenState extends State<StoriesScreen> with TickerProviderStateM
           tabs: const [  
             Tab(text: 'أحاديث'),  
             Tab(text: 'قصص'),  
+            Tab(text: 'أسباب النزول'),  
             Tab(text: 'إلهام AI'),  
           ],  
         ),  
@@ -180,6 +181,7 @@ class _StoriesScreenState extends State<StoriesScreen> with TickerProviderStateM
                 children: [  
                   _buildHadithsTab(),  
                   _buildStoriesTab(),  
+                  _buildRevelationTab(),  
                   _buildInspirationTab(),  
                 ],  
               )  
@@ -254,6 +256,132 @@ class _StoriesScreenState extends State<StoriesScreen> with TickerProviderStateM
           ),  
         ),  
       ],  
+    );  
+  }  
+  
+  Widget _buildRevelationTab() {  
+    return ListView.builder(  
+      padding: const EdgeInsets.all(16),  
+      itemCount: _stories.length,  
+      itemBuilder: (context, index) {  
+        final story = _stories[index];  
+        return _buildRevelationCard(  
+          title: story['title'] ?? '',  
+          beforeRevelation: _getBeforeRevelation(story['title'] ?? ''),  
+          afterRevelation: _getAfterRevelation(story['title'] ?? ''),  
+          icon: Icons.menu_book,  
+          color: Colors.greenAccent,  
+        );  
+      },  
+    );  
+  }  
+  
+  String _getBeforeRevelation(String title) {  
+    final Map<String, String> beforeRevelations = {  
+      'قصة يوسف': 'كان بنو إسرائيل في مصر يعيشون في ظلم الفراعنة، وكانوا بحاجة إلى هداية الله',  
+      'قصة موسى': 'كان بنو إسرائيل مستعبدين في مصر، وكان فرعون طاغية متكبر',  
+      'قصة عيسى': 'كان بنو إسرائيل قد انحرفوا عن الشريعة، وكانوا بحاجة إلى رسالة جديدة',  
+      'قصة محمد': 'كانت العرب في جاهلية، يعبدون الأصنام ويقتلون البنات',  
+      'قصة إبراهيم': 'كان قومه يعبدون الأصنام والكواكب',  
+      'قصة نوح': 'كان قومه قد غرقوا في الضلال والشرك',  
+      'قصة لوط': 'كان قومه يرتكبون الفاحشة',  
+      'قصة صالح': 'كان قوم ثمود يعبدون الأصنام ويظلمون',  
+      'قصة هود': 'كان قوم عاد متكبرين طغاة',  
+      'قصة أيوب': 'كان ابتلاءً من الله لاختبار صبره',  
+    };  
+    return beforeRevelations[title] ?? 'كان الناس في ضلال واحتاجوا إلى هداية الله';  
+  }  
+  
+  String _getAfterRevelation(String title) {  
+    final Map<String, String> afterRevelations = {  
+      'قصة يوسف': 'أنزل الله سورة يوسف لتعليم الصبر والحكمة والتوكل على الله',  
+      'قصة موسى': 'أنزل الله التوراة وأرسل موسى لإنقاذ بني إسرائيل من الظلم',  
+      'قصة عيسى': 'أنزل الله الإنجيل وبعث عيسى لهداية بني إسرائيل',  
+      'قصة محمد': 'أنزل الله القرآن الكريم ليخرج الناس من الظلمات إلى النور',  
+      'قصة إبراهيم': 'جعله الله إماماً للناس وأبو الأنبياء',  
+      'قصة نوح': 'نجاه الله ومن معه في السفينة وأغرق الكافرين',  
+      'قصة لوط': 'أنجاه الله وأهلك قومه المجرمين',  
+      'قصة صالح': 'أنجاه الله وأهلك قومه الظالمين',  
+      'قصة هود': 'أنجاه الله وأهلك قومه المتكبرين',  
+      'قصة أيوب': 'شفاه الله ورد عليه صحته وماله',  
+    };  
+    return afterRevelations[title] ?? 'أنزل الله الآيات لهداية الناس وإخراجهم من الظلمات';  
+  }  
+  
+  Widget _buildRevelationCard({  
+    required String title,  
+    required String beforeRevelation,  
+    required String afterRevelation,  
+    required IconData icon,  
+    required Color color,  
+  }) {  
+    return Container(  
+      margin: const EdgeInsets.only(bottom: 20),  
+      padding: const EdgeInsets.all(20),  
+      decoration: BoxDecoration(  
+        color: Colors.white.withOpacity(0.05),  
+        borderRadius: BorderRadius.circular(20),  
+        border: Border.all(color: color.withOpacity(0.3)),  
+        boxShadow: [  
+          BoxShadow(color: color.withOpacity(0.05), blurRadius: 10, spreadRadius: 1)  
+        ],  
+      ),  
+      child: Column(  
+        crossAxisAlignment: CrossAxisAlignment.start,  
+        children: [  
+          Row(  
+            children: [  
+              Container(  
+                padding: const EdgeInsets.all(8),  
+                decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),  
+                child: Icon(icon, color: color, size: 24),  
+              ),  
+              const SizedBox(width: 15),  
+              Expanded(  
+                child: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),  
+              ),  
+            ],  
+          ),  
+          const SizedBox(height: 20),  
+          _buildRevelationSection('قبل النزول', beforeRevelation, Colors.redAccent),  
+          const SizedBox(height: 15),  
+          _buildRevelationSection('بعد النزول', afterRevelation, Colors.greenAccent),  
+        ],  
+      ),  
+    );  
+  }  
+  
+  Widget _buildRevelationSection(String title, String content, Color color) {  
+    return Container(  
+      padding: const EdgeInsets.all(15),  
+      decoration: BoxDecoration(  
+        color: color.withOpacity(0.1),  
+        borderRadius: BorderRadius.circular(12),  
+        border: Border.all(color: color.withOpacity(0.3)),  
+      ),  
+      child: Column(  
+        crossAxisAlignment: CrossAxisAlignment.start,  
+        children: [  
+          Text(  
+            title,  
+            style: TextStyle(  
+              color: color,  
+              fontSize: 16,  
+              fontWeight: FontWeight.bold,  
+            ),  
+          ),  
+          const SizedBox(height: 8),  
+          Text(  
+            content,  
+            style: TextStyle(  
+              color: Colors.white.withOpacity(0.9),  
+              fontSize: 15,  
+              height: 1.6,  
+            ),  
+            textDirection: TextDirection.rtl,  
+          ),  
+        ],  
+      ),  
     );  
   }  
   
@@ -355,69 +483,68 @@ class _StoriesScreenState extends State<StoriesScreen> with TickerProviderStateM
       child: Container(  
         margin: const EdgeInsets.only(bottom: 20),  
         padding: const EdgeInsets.all(20),  
-        decoration: BoxDecoration(  
-          color: Colors.white.withOpacity(0.05),  
-          borderRadius: BorderRadius.circular(20),  
-          border: Border.all(color: color.withOpacity(0.3)),  
-          boxShadow: [  
-            BoxShadow(color: color.withOpacity(0.05), blurRadius: 10, spreadRadius: 1)  
-          ],  
-        ),  
-        child: Column(  
-          crossAxisAlignment: CrossAxisAlignment.start,  
-          children: [  
-            Row(  
-              children: [  
-                Container(  
-                  padding: const EdgeInsets.all(8),  
-                  decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),  
-                  child: Icon(icon, color: color, size: 24),  
-                ),  
-                const SizedBox(width: 15),  
-                Expanded(  
-                  child: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),  
-                ),  
-              ],  
-            ),  
-            const SizedBox(height: 12),  
-            Text(subtitle, style: TextStyle(color: color.withOpacity(0.8), fontSize: 13, fontWeight: FontWeight.w500)),  
-            const SizedBox(height: 15),  
-            Text(  
-              content,  
-              style: TextStyle(  
-                color: Colors.white.withOpacity(0.9),   
-                fontSize: isHadith ? 20 : 16,  
-                height: 1.6,  
-                fontWeight: isHadith ? FontWeight.w500 : FontWeight.normal,  
+      decoration: BoxDecoration(  
+        color: Colors.white.withOpacity(0.05),  
+        borderRadius: BorderRadius.circular(20),  
+        border: Border.all(color: color.withOpacity(0.3)),  
+        boxShadow: [  
+          BoxShadow(color: color.withOpacity(0.05), blurRadius: 10, spreadRadius: 1)  
+        ],  
+      ),  
+      child: Column(  
+        crossAxisAlignment: CrossAxisAlignment.start,  
+        children: [  
+          Row(  
+            children: [  
+              Container(  
+                padding: const EdgeInsets.all(8),  
+                decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),  
+                child: Icon(icon, color: color, size: 24),  
               ),  
-              textDirection: TextDirection.rtl,  
+              const SizedBox(width: 15),  
+              Expanded(  
+                child: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),  
+              ),  
+            ],  
+          ),  
+          const SizedBox(height: 12),  
+          Text(subtitle, style: TextStyle(color: color.withOpacity(0.8), fontSize: 13, fontWeight: FontWeight.w500)),  
+          const SizedBox(height: 15),  
+          Text(  
+            content,  
+            style: TextStyle(  
+              color: Colors.white.withOpacity(0.9),   
+              fontSize: isHadith ? 20 : 16,  
+              height: 1.6,  
+              fontWeight: isHadith ? FontWeight.w500 : FontWeight.normal,  
             ),  
-            const SizedBox(height: 20),  
-            Row(  
-              mainAxisAlignment: MainAxisAlignment.end,  
-              children: [  
-                if (showVideoBtn)  
-                  TextButton.icon(  
-                    onPressed: () {  
-                      ScaffoldMessenger.of(context).showSnackBar(  
-                        const SnackBar(content: Text('سيتم توليد فيديو مبهر مدته 10-15 دقيقة (نسخة برو)')),  
-                      );  
-                    },  
-                    icon: const Icon(Icons.movie_creation, color: Colors.redAccent),  
-                    label: const Text('مشاهدة', style: TextStyle(color: Colors.redAccent)),  
-                  ),  
-                if (showListenBtn)  
-                  TextButton.icon(  
-                    onPressed: () {  
-                      Provider.of<TTSService>(context, listen: false).speak(content);  
-                    },  
-                    icon: const Icon(Icons.volume_up, color: Colors.blueAccent),  
-                    label: const Text('استماع', style: TextStyle(color: Colors.blueAccent)),  
-                  ),  
-              ],  
-            ),  
-          ],  
-        ),  
+            textDirection: TextDirection.rtl,  
+          ),  
+          const SizedBox(height: 20),  
+          Row(  
+            mainAxisAlignment: MainAxisAlignment.end,  
+            children: [  
+              if (showVideoBtn)  
+                TextButton.icon(  
+                  onPressed: () {  
+                    ScaffoldMessenger.of(context).showSnackBar(  
+                      const SnackBar(content: Text('سيتم توليد فيديو مبهر مدته 10-15 دقيقة (نسخة برو)')),  
+                    );  
+                  },  
+                  icon: const Icon(Icons.movie_creation, color: Colors.redAccent),  
+                  label: const Text('مشاهدة', style: TextStyle(color: Colors.redAccent)),  
+                ),  
+              if (showListenBtn)  
+                TextButton.icon(  
+                  onPressed: () {  
+                    Provider.of<TTSService>(context, listen: false).speak(content);  
+                  },  
+                  icon: const Icon(Icons.volume_up, color: Colors.blueAccent),  
+                  label: const Text('استماع', style: TextStyle(color: Colors.blueAccent)),  
+                ),  
+            ],  
+          ),  
+        ],  
       ),  
     );  
   }  
