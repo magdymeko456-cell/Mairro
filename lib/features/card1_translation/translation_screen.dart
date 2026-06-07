@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../services/tts_service.dart';
 import '../../services/ai_service.dart';
+import '../../services/language_service.dart';
 
 class TextTranslationScreen extends StatefulWidget {
   const TextTranslationScreen({super.key});
@@ -18,40 +19,54 @@ class _TextTranslationScreenState extends State<TextTranslationScreen> {
   final TextEditingController _sourceController = TextEditingController();
   final TextEditingController _translatedController = TextEditingController();
   late stt.SpeechToText _speechToText;
-
   String _selectedLanguage = 'en';
   bool _isListening = false;
   bool _isTranslating = false;
   bool _hasTranslated = false;
 
   final Map<String, String> _languages = {
-    'af': 'Afrikaans', 'sq': 'Albanian', 'am': 'Amharic', 'ar': 'العربية', 'hy': 'Armenian',
-    'az': 'Azerbaijani', 'eu': 'Basque', 'be': 'Belarusian', 'bn': 'Bengali', 'bs': 'Bosnian',
-    'bg': 'Bulgarian', 'ca': 'Catalan', 'ceb': 'Cebuano', 'ny': 'Chichewa', 'zh': '中文',
-    'co': 'Corsican', 'hr': 'Croatian', 'cs': 'Czech', 'da': 'Danish', 'nl': 'Dutch',
-    'en': 'English', 'eo': 'Esperanto', 'et': 'Estonian', 'tl': 'Filipino', 'fi': 'Finnish',
-    'fr': 'Français', 'fy': 'Frisian', 'gl': 'Galician', 'ka': 'Georgian', 'de': 'Deutsch',
-    'el': 'Greek', 'gu': 'Gujarati', 'ht': 'Haitian Creole', 'ha': 'Hausa', 'haw': 'Hawaiian',
-    'iw': 'Hebrew', 'hi': 'Hindi', 'hmn': 'Hmong', 'hu': 'Hungarian', 'is': 'Icelandic',
-    'ig': 'Igbo', 'id': 'Indonesian', 'ga': 'Irish', 'it': 'Italiano', 'ja': '日本語',
-    'jw': 'Javanese', 'kn': 'Kannada', 'kk': 'Kazakh', 'km': 'Khmer', 'ko': '한국어',
-    'ku': 'Kurdish', 'ky': 'Kyrgyz', 'lo': 'Lao', 'la': 'Latin', 'lv': 'Latvian',
-    'lt': 'Lithuanian', 'lb': 'Luxembourgish', 'mk': 'Macedonian', 'mg': 'Malagasy', 'ms': 'Malay',
-    'ml': 'Malayalam', 'mt': 'Maltese', 'mi': 'Maori', 'mr': 'Marathi', 'mn': 'Mongolian',
-    'my': 'Myanmar', 'ne': 'Nepali', 'no': 'Norwegian', 'ps': 'Pashto', 'fa': 'Persian',
-    'pl': 'Polish', 'pt': 'Português', 'pa': 'Punjabi', 'ro': 'Romanian', 'ru': 'Русский',
-    'sm': 'Samoan', 'gd': 'Scots Gaelic', 'sr': 'Serbian', 'st': 'Sesotho', 'sn': 'Shona',
-    'sd': 'Sindhi', 'si': 'Sinhala', 'sk': 'Slovak', 'sl': 'Slovenian', 'so': 'Somali',
-    'es': 'Español', 'su': 'Sundanese', 'sw': 'Swahili', 'sv': 'Swedish', 'tg': 'Tajik',
-    'ta': 'Tamil', 'te': 'Telugu', 'th': 'Thai', 'tr': 'Türkçe', 'uk': 'Ukrainian',
-    'ur': 'Urdu', 'uz': 'Uzbek', 'vi': 'Vietnamese', 'cy': 'Welsh', 'xh': 'Xhosa',
-    'yi': 'Yiddish', 'yo': 'Yoruba', 'zu': 'Zulu',
+    'af': 'Afrikaans', 'sq': 'Albanian', 'am': 'Amharic', 'ar': 'العربية',
+    'hy': 'Armenian', 'az': 'Azerbaijani', 'eu': 'Basque', 'be': 'Belarusian',
+    'bn': 'Bengali', 'bs': 'Bosnian', 'bg': 'Bulgarian', 'ca': 'Catalan',
+    'ceb': 'Cebuano', 'ny': 'Chichewa', 'zh': '中文', 'co': 'Corsican',
+    'hr': 'Croatian', 'cs': 'Czech', 'da': 'Danish', 'nl': 'Dutch',
+    'en': 'English', 'eo': 'Esperanto', 'et': 'Estonian', 'tl': 'Filipino',
+    'fi': 'Finnish', 'fr': 'Français', 'fy': 'Frisian', 'gl': 'Galician',
+    'ka': 'Georgian', 'de': 'Deutsch', 'el': 'Greek', 'gu': 'Gujarati',
+    'ht': 'Haitian Creole', 'ha': 'Hausa', 'haw': 'Hawaiian', 'iw': 'Hebrew',
+    'hi': 'Hindi', 'hmn': 'Hmong', 'hu': 'Hungarian', 'is': 'Icelandic',
+    'ig': 'Igbo', 'id': 'Indonesian', 'ga': 'Irish', 'it': 'Italiano',
+    'ja': '日本語', 'jw': 'Javanese', 'kn': 'Kannada', 'kk': 'Kazakh',
+    'km': 'Khmer', 'rw': 'Kinyarwanda', 'ko': '한국어', 'ku': 'Kurdish',
+    'ky': 'Kyrgyz', 'lo': 'Lao', 'la': 'Latin', 'lv': 'Latvian',
+    'lt': 'Lithuanian', 'lb': 'Luxembourgish', 'mk': 'Macedonian',
+    'mg': 'Malagasy', 'ms': 'Malay', 'ml': 'Malayalam', 'mt': 'Maltese',
+    'mi': 'Maori', 'mr': 'Marathi', 'mn': 'Mongolian', 'my': 'Myanmar',
+    'ne': 'Nepali', 'no': 'Norwegian', 'or': 'Odia', 'ps': 'Pashto',
+    'fa': 'فارسی', 'pl': 'Polish', 'pt': 'Português', 'pa': 'Punjabi',
+    'ro': 'Romanian', 'ru': 'Русский', 'sm': 'Samoan', 'gd': 'Scots Gaelic',
+    'sr': 'Serbian', 'st': 'Sesotho', 'sn': 'Shona', 'sd': 'Sindhi',
+    'si': 'Sinhala', 'sk': 'Slovak', 'sl': 'Slovenian', 'so': 'Somali',
+    'es': 'Español', 'su': 'Sundanese', 'sw': 'Swahili', 'sv': 'Swedish',
+    'tg': 'Tajik', 'ta': 'Tamil', 'tt': 'Tatar', 'te': 'Telugu',
+    'th': 'ไทย', 'tr': 'Türkçe', 'tk': 'Turkmen', 'uk': 'Ukrainian',
+    'ur': 'اردو', 'ug': 'Uyghur', 'uz': 'Uzbek', 'vi': 'Tiếng Việt',
+    'cy': 'Welsh', 'xh': 'Xhosa', 'yi': 'Yiddish', 'yo': 'Yoruba', 'zu': 'Zulu',
   };
 
   @override
   void initState() {
     super.initState();
     _speechToText = stt.SpeechToText();
+    _loadLastLanguage();
+  }
+
+  Future<void> _loadLastLanguage() async {
+    final langService = Provider.of<LanguageService>(context, listen: false);
+    final lastLang = langService.getLanguageForScreen('translation');
+    if (lastLang != 'auto' && _languages.containsKey(lastLang)) {
+      setState(() => _selectedLanguage = lastLang);
+    }
   }
 
   @override
@@ -61,43 +76,55 @@ class _TextTranslationScreenState extends State<TextTranslationScreen> {
     super.dispose();
   }
 
+  void _onSourceChanged(String value) {
+    if (_hasTranslated && value.isNotEmpty) {
+      // مستخدم بدأ يكتب تاني - امسح النتيجة السابقة
+      setState(() {
+        _translatedController.clear();
+        _hasTranslated = false;
+      });
+    }
+  }
+
   Future<void> _handleMic() async {
     if (_isListening) {
-      await _speechToText.stop();
+      _speechToText.stop();
       setState(() => _isListening = false);
-      _translate();
-    } else {
-      _onMicStart();
-      bool available = await _speechToText.initialize();
-      if (available) {
-        setState(() => _isListening = true);
-        _speechToText.listen(
-          onResult: (result) {
-            setState(() => _sourceController.text = result.recognizedWords);
-            if (result.finalResult) {
-              setState(() => _isListening = false);
-              _translate();
-            }
-          },
-        );
+      if (_sourceController.text.isNotEmpty) {
+        _translate();
       }
+      return;
     }
-  }
 
-  void _onSourceChanged(String value) {
-    // Clear both if keyboard or mic is used after translation as requested
-    if (_hasTranslated && value.isNotEmpty) {
-      _translatedController.clear();
-      setState(() => _hasTranslated = false);
-    }
-  }
-
-  void _onMicStart() {
-    // If user clicks mic after translation, clear both editors
+    // إذا كان في ترجمة سابقة، امسح المحررين لبدء جديد
     if (_hasTranslated) {
       _sourceController.clear();
       _translatedController.clear();
       setState(() => _hasTranslated = false);
+    }
+
+    final available = await _speechToText.initialize();
+    if (available) {
+      setState(() => _isListening = true);
+      _speechToText.listen(
+        onResult: (result) {
+          setState(() {
+            _sourceController.text = result.recognizedWords;
+            _sourceController.selection = TextSelection.fromPosition(
+              TextPosition(offset: _sourceController.text.length),
+            );
+          });
+          if (result.finalResult) {
+            setState(() => _isListening = false);
+            _translate();
+          }
+        },
+        localeId: 'ar',
+        listenOptions: stt.SpeechListenOptions(
+          partialResults: true,
+          listenMode: stt.ListenMode.confirmation,
+        ),
+      );
     }
   }
 
@@ -130,7 +157,7 @@ class _TextTranslationScreenState extends State<TextTranslationScreen> {
     Clipboard.setData(ClipboardData(text: content));
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('تم نسخ الترجمة مع التوقيع للمشاركة'),
+        content: Text('✅ تم نسخ الترجمة مع التوقيع - للمشاركة كملف صوتي'),
         backgroundColor: Colors.blueAccent,
       ),
     );
@@ -140,7 +167,7 @@ class _TextTranslationScreenState extends State<TextTranslationScreen> {
     if (_translatedController.text.isEmpty) return;
     Clipboard.setData(ClipboardData(text: _translatedController.text));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تم نسخ النص المترجم')),
+      const SnackBar(content: Text('✅ تم نسخ النص المترجم')),
     );
   }
 
@@ -164,11 +191,15 @@ class _TextTranslationScreenState extends State<TextTranslationScreen> {
           children: [
             Icon(Icons.auto_awesome, color: Colors.amber),
             SizedBox(width: 10),
-            Expanded(child: Text('مساعد الذكاء الصناعي', style: TextStyle(color: Colors.amber, fontSize: 16))),
+            Expanded(
+              child: Text('مساعد الذكاء الصناعي',
+                  style: TextStyle(color: Colors.amber, fontSize: 16)),
+            ),
           ],
         ),
         backgroundColor: const Color(0xFF1B2838),
-        content: Text(inspiration, style: const TextStyle(color: Colors.white)),
+        content:
+            Text(inspiration, style: const TextStyle(color: Colors.white)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -188,7 +219,9 @@ class _TextTranslationScreenState extends State<TextTranslationScreen> {
         child: const Icon(Icons.auto_awesome, color: Colors.black),
       ),
       appBar: AppBar(
-        title: const Text('ترجمة نصية', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text('ترجمة نصية',
+            style: TextStyle(
+                color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: const Color(0xFF0D1B2A),
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -211,9 +244,10 @@ class _TextTranslationScreenState extends State<TextTranslationScreen> {
                   width: 220,
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   decoration: BoxDecoration(
-                    color: Colors.blueAccent.withValues(alpha: 0.2),
+                    color: Colors.blueAccent.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.5)),
+                    border: Border.all(
+                        color: Colors.blueAccent.withOpacity(0.5)),
                   ),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
@@ -221,12 +255,18 @@ class _TextTranslationScreenState extends State<TextTranslationScreen> {
                       isExpanded: true,
                       dropdownColor: const Color(0xFF1B2838),
                       icon: const Icon(Icons.language, color: Colors.blueAccent),
-                      items: _languages.entries.map((e) => DropdownMenuItem(
-                        value: e.key,
-                        child: Text(e.value, style: const TextStyle(color: Colors.white, fontSize: 14)),
-                      )).toList(),
+                      items: _languages.entries
+                          .map((e) => DropdownMenuItem(
+                                value: e.key,
+                                child: Text(e.value,
+                                    style: const TextStyle(
+                                        color: Colors.white, fontSize: 14)),
+                              ))
+                          .toList(),
                       onChanged: (v) {
                         setState(() => _selectedLanguage = v!);
+                        Provider.of<LanguageService>(context, listen: false)
+                            .saveLanguageForScreen('translation', v!);
                         if (_sourceController.text.isNotEmpty) _translate();
                       },
                     ),
@@ -239,16 +279,18 @@ class _TextTranslationScreenState extends State<TextTranslationScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.05),
+                  color: Colors.white.withOpacity(0.05),
                   borderRadius: BorderRadius.circular(15),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                  border:
+                      Border.all(color: Colors.white.withOpacity(0.1)),
                 ),
                 child: Column(
                   children: [
                     TextField(
                       controller: _sourceController,
-                      maxLines: 6,
-                      style: const TextStyle(color: Colors.white, fontSize: 18),
+                      maxLines: 8,
+                      style: const TextStyle(
+                          color: Colors.white, fontSize: 18),
                       decoration: const InputDecoration(
                         hintText: 'اكتب النص هنا أو استخدم المايك...',
                         hintStyle: TextStyle(color: Colors.white24),
@@ -258,20 +300,25 @@ class _TextTranslationScreenState extends State<TextTranslationScreen> {
                     ),
                     Row(
                       children: [
-                        // Mic on the left bottom as requested
                         IconButton(
                           icon: Icon(
-                            _isListening ? Icons.stop_circle : Icons.mic,
-                            color: _isListening ? Colors.redAccent : Colors.blueAccent,
-                            size: 32,
+                            _isListening
+                                ? Icons.stop_circle
+                                : Icons.mic,
+                            color: _isListening
+                                ? Colors.redAccent
+                                : Colors.blueAccent,
+                            size: 36,
                           ),
                           onPressed: _handleMic,
                         ),
                         const Spacer(),
                         if (_sourceController.text.isNotEmpty)
                           TextButton.icon(
-                            icon: const Icon(Icons.translate, color: Colors.amber, size: 20),
-                            label: const Text('ترجم', style: TextStyle(color: Colors.amber)),
+                            icon: const Icon(Icons.translate,
+                                color: Colors.amber, size: 20),
+                            label: const Text('ترجم',
+                                style: TextStyle(color: Colors.amber)),
                             onPressed: _translate,
                           ),
                       ],
@@ -279,31 +326,34 @@ class _TextTranslationScreenState extends State<TextTranslationScreen> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 16),
 
-              // Loading indicator
               if (_isTranslating)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 8),
-                  child: CircularProgressIndicator(color: Colors.blueAccent, strokeWidth: 2),
+                  child: CircularProgressIndicator(
+                      color: Colors.blueAccent, strokeWidth: 2),
                 ),
 
               // Translated Editor
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.blueAccent.withValues(alpha: 0.05),
+                  color: Colors.blueAccent.withOpacity(0.05),
                   borderRadius: BorderRadius.circular(15),
-                  border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.2)),
+                  border: Border.all(
+                      color: Colors.blueAccent.withOpacity(0.2)),
                 ),
                 child: Column(
                   children: [
                     TextField(
                       controller: _translatedController,
-                      maxLines: 6,
+                      maxLines: 8,
                       readOnly: true,
-                      style: const TextStyle(color: Colors.amberAccent, fontSize: 18, fontWeight: FontWeight.w500),
+                      style: const TextStyle(
+                          color: Colors.amberAccent,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w500),
                       decoration: const InputDecoration(
                         hintText: 'الترجمة ستظهر هنا...',
                         hintStyle: TextStyle(color: Colors.white24),
@@ -313,22 +363,25 @@ class _TextTranslationScreenState extends State<TextTranslationScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        // Copy (no watermark) - leftmost
+                        // نسخ
                         IconButton(
-                          icon: const Icon(Icons.copy, color: Colors.white70, size: 22),
+                          icon: const Icon(Icons.copy,
+                              color: Colors.white70, size: 22),
                           onPressed: _copyText,
-                          tooltip: 'نسخ بدون توقيع',
+                          tooltip: 'نسخ الترجمة',
                         ),
                         const Spacer(),
-                        // Share (next to speaker)
+                        // مشاركة مع توقيع
                         IconButton(
-                          icon: const Icon(Icons.share, color: Colors.greenAccent, size: 24),
+                          icon: const Icon(Icons.share,
+                              color: Colors.greenAccent, size: 24),
                           onPressed: _shareAudio,
-                          tooltip: 'مشاركة مع التوقيع',
+                          tooltip: 'مشاركة ملف الصوت مع التوقيع',
                         ),
-                        // Speaker (far right)
+                        // نطق
                         IconButton(
-                          icon: const Icon(Icons.volume_up, color: Colors.blueAccent, size: 26),
+                          icon: const Icon(Icons.volume_up,
+                              color: Colors.blueAccent, size: 26),
                           onPressed: _speakTranslation,
                           tooltip: 'نطق الترجمة',
                         ),
@@ -337,14 +390,15 @@ class _TextTranslationScreenState extends State<TextTranslationScreen> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 24),
-
               const Opacity(
                 opacity: 0.3,
                 child: Text(
                   "Mirror Scorpion Translate",
-                  style: TextStyle(color: Colors.white, letterSpacing: 2, fontSize: 12),
+                  style: TextStyle(
+                      color: Colors.white,
+                      letterSpacing: 2,
+                      fontSize: 12),
                 ),
               ),
             ],

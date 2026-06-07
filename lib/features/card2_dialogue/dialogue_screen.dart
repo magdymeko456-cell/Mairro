@@ -4,49 +4,66 @@ import 'package:http/http.dart' as http;
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:provider/provider.dart';
 import '../../services/tts_service.dart';
+import '../../services/language_service.dart';
 
 class DialogueTranslationScreen extends StatefulWidget {
   const DialogueTranslationScreen({super.key});
 
   @override
-  State<DialogueTranslationScreen> createState() => _DialogueTranslationScreenState();
+  State<DialogueTranslationScreen> createState() =>
+      _DialogueTranslationScreenState();
 }
 
-class _DialogueTranslationScreenState extends State<DialogueTranslationScreen> {
+class _DialogueTranslationScreenState
+    extends State<DialogueTranslationScreen> {
   final TextEditingController _upperController = TextEditingController();
   final TextEditingController _lowerController = TextEditingController();
   late stt.SpeechToText _speechToText;
-
   String _rightLang = 'ar';
   String _leftLang = 'en';
   bool _isListening = false;
   bool _isTranslating = false;
+  bool _hasResult = false;
 
   final Map<String, String> _languages = {
     'af': 'Afrikaans', 'sq': 'Albanian', 'am': 'Amharic', 'ar': 'العربية',
     'hy': 'Armenian', 'az': 'Azerbaijani', 'eu': 'Basque', 'be': 'Belarusian',
     'bn': 'Bengali', 'bs': 'Bosnian', 'bg': 'Bulgarian', 'ca': 'Catalan',
-    'zh': '中文', 'hr': 'Croatian', 'cs': 'Czech', 'da': 'Danish',
-    'nl': 'Dutch', 'en': 'English', 'et': 'Estonian', 'fi': 'Finnish',
-    'fr': 'Français', 'ka': 'Georgian', 'de': 'Deutsch', 'el': 'Greek',
-    'gu': 'Gujarati', 'hi': 'Hindi', 'hu': 'Hungarian', 'is': 'Icelandic',
-    'id': 'Indonesian', 'ga': 'Irish', 'it': 'Italiano', 'ja': '日本語',
-    'kn': 'Kannada', 'kk': 'Kazakh', 'ko': '한국어', 'ku': 'Kurdish',
-    'lv': 'Latvian', 'lt': 'Lithuanian', 'mk': 'Macedonian', 'ms': 'Malay',
-    'ml': 'Malayalam', 'mt': 'Maltese', 'mr': 'Marathi', 'mn': 'Mongolian',
-    'ne': 'Nepali', 'no': 'Norwegian', 'ps': 'Pashto', 'fa': 'Persian',
-    'pl': 'Polish', 'pt': 'Português', 'pa': 'Punjabi', 'ro': 'Romanian',
-    'ru': 'Русский', 'sr': 'Serbian', 'sk': 'Slovak', 'sl': 'Slovenian',
-    'so': 'Somali', 'es': 'Español', 'sw': 'Swahili', 'sv': 'Swedish',
-    'ta': 'Tamil', 'te': 'Telugu', 'th': 'Thai', 'tr': 'Türkçe',
-    'uk': 'Ukrainian', 'ur': 'Urdu', 'uz': 'Uzbek', 'vi': 'Vietnamese',
-    'cy': 'Welsh', 'xh': 'Xhosa', 'yi': 'Yiddish', 'yo': 'Yoruba', 'zu': 'Zulu',
+    'zh': '中文', 'co': 'Corsican', 'hr': 'Croatian', 'cs': 'Czech',
+    'da': 'Danish', 'nl': 'Dutch', 'en': 'English', 'et': 'Estonian',
+    'tl': 'Filipino', 'fi': 'Finnish', 'fr': 'Français', 'ka': 'Georgian',
+    'de': 'Deutsch', 'el': 'Greek', 'gu': 'Gujarati', 'hi': 'Hindi',
+    'hu': 'Hungarian', 'is': 'Icelandic', 'id': 'Indonesian', 'ga': 'Irish',
+    'it': 'Italiano', 'ja': '日本語', 'kn': 'Kannada', 'kk': 'Kazakh',
+    'ko': '한국어', 'ku': 'Kurdish', 'lv': 'Latvian', 'lt': 'Lithuanian',
+    'mk': 'Macedonian', 'ms': 'Malay', 'ml': 'Malayalam', 'mt': 'Maltese',
+    'mr': 'Marathi', 'mn': 'Mongolian', 'my': 'Myanmar', 'ne': 'Nepali',
+    'no': 'Norwegian', 'fa': 'فارسی', 'pl': 'Polish', 'pt': 'Português',
+    'pa': 'Punjabi', 'ro': 'Romanian', 'ru': 'Русский', 'sr': 'Serbian',
+    'si': 'Sinhala', 'sk': 'Slovak', 'sl': 'Slovenian', 'so': 'Somali',
+    'es': 'Español', 'su': 'Sundanese', 'sw': 'Swahili', 'sv': 'Swedish',
+    'ta': 'Tamil', 'te': 'Telugu', 'th': 'ไทย', 'tr': 'Türkçe',
+    'uk': 'Ukrainian', 'ur': 'اردو', 'vi': 'Tiếng Việt', 'cy': 'Welsh',
+    'yi': 'Yiddish', 'yo': 'Yoruba', 'zu': 'Zulu',
   };
 
   @override
   void initState() {
     super.initState();
     _speechToText = stt.SpeechToText();
+    _loadLastLanguages();
+  }
+
+  Future<void> _loadLastLanguages() async {
+    final langService = Provider.of<LanguageService>(context, listen: false);
+    final savedRight = langService.getLanguageForScreen('dialogue_right');
+    final savedLeft = langService.getLanguageForScreen('dialogue_left');
+    if (savedRight != 'auto' && _languages.containsKey(savedRight)) {
+      setState(() => _rightLang = savedRight);
+    }
+    if (savedLeft != 'auto' && _languages.containsKey(savedLeft)) {
+      setState(() => _leftLang = savedLeft);
+    }
   }
 
   @override
@@ -57,28 +74,45 @@ class _DialogueTranslationScreenState extends State<DialogueTranslationScreen> {
   }
 
   Future<void> _handleMic() async {
-    if (_isListening) {
-      await _speechToText.stop();
-      setState(() => _isListening = false);
-      _translate();
-    } else {
-      // Clear both when starting new translation as requested
+    // إذا كان في نتائج سابقة، امسح الشاشة لبدء جديد
+    if (_hasResult) {
       _upperController.clear();
       _lowerController.clear();
-      bool available = await _speechToText.initialize();
-      if (available) {
-        setState(() => _isListening = true);
-        _speechToText.listen(
-          onResult: (result) {
-            setState(() => _upperController.text = result.recognizedWords);
-            if (result.finalResult) {
-              setState(() => _isListening = false);
-              _translate();
-            }
-          },
-          localeId: _rightLang,
-        );
+      setState(() => _hasResult = false);
+    }
+
+    if (_isListening) {
+      _speechToText.stop();
+      setState(() => _isListening = false);
+      if (_upperController.text.isNotEmpty) {
+        _translate();
       }
+      return;
+    }
+
+    final available = await _speechToText.initialize();
+    if (available) {
+      setState(() => _isListening = true);
+      // المحرر العلوي يستخدم لغة الزر الذي ناحية اليمين دائماً
+      _speechToText.listen(
+        onResult: (result) {
+          setState(() {
+            _upperController.text = result.recognizedWords;
+            _upperController.selection = TextSelection.fromPosition(
+              TextPosition(offset: _upperController.text.length),
+            );
+          });
+          if (result.finalResult) {
+            setState(() => _isListening = false);
+            _translate();
+          }
+        },
+        localeId: _rightLang, // دائماً يستخدم لغة الزر اليمين
+        listenOptions: stt.SpeechListenOptions(
+          partialResults: true,
+          listenMode: stt.ListenMode.confirmation,
+        ),
+      );
     }
   }
 
@@ -93,7 +127,10 @@ class _DialogueTranslationScreenState extends State<DialogueTranslationScreen> {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final translated = (data[0] as List).map((e) => e[0] as String).join();
-        setState(() => _lowerController.text = translated);
+        setState(() {
+          _lowerController.text = translated;
+          _hasResult = true;
+        });
       }
     } catch (e) {
       debugPrint('Translation error: $e');
@@ -108,7 +145,11 @@ class _DialogueTranslationScreenState extends State<DialogueTranslationScreen> {
       _leftLang = temp;
       _upperController.clear();
       _lowerController.clear();
+      _hasResult = false;
     });
+    final langService = Provider.of<LanguageService>(context, listen: false);
+    langService.saveLanguageForScreen('dialogue_right', _rightLang);
+    langService.saveLanguageForScreen('dialogue_left', _leftLang);
   }
 
   void _speakTranslation() {
@@ -123,7 +164,8 @@ class _DialogueTranslationScreenState extends State<DialogueTranslationScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('حوار مترجم',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            style: TextStyle(
+                color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: const Color(0xFF0D1B2A),
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -141,183 +183,251 @@ class _DialogueTranslationScreenState extends State<DialogueTranslationScreen> {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                // Upper Editor (source - uses right button language)
+                // Upper Editor (source - يستخدم لغة الزر اليمين دائماً)
                 Expanded(
                   flex: 3,
-                  child: _buildEditor(
-                    controller: _upperController,
-                    hint: 'الكلام الملتقط من المايك يظهر هنا...',
-                    isSource: true,
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(
+                          color: Colors.white.withOpacity(0.12)),
+                    ),
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _upperController,
+                            maxLines: null,
+                            expands: true,
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 20),
+                            textAlign: TextAlign.right,
+                            decoration: const InputDecoration(
+                              hintText:
+                                  'الكلام الملتقط من المايك يظهر هنا...',
+                              hintStyle: TextStyle(
+                                  color: Colors.white24, fontSize: 16),
+                              border: InputBorder.none,
+                            ),
+                            readOnly: true,
+                          ),
+                        ),
+                        // إظهار لغة المصدر الحالية
+                        Align(
+                          alignment: Alignment.bottomLeft,
+                          child: Text(
+                            'اللغة: ${_languages[_rightLang] ?? _rightLang}',
+                            style: TextStyle(
+                              color: Colors.blueAccent.withOpacity(0.6),
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-
                 const SizedBox(height: 12),
 
                 // Language selectors + mic + swap
-                _buildControlsRow(),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Left language button (target - للمحرر السفلي)
+                      Expanded(
+                        child: Container(
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 8),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: _leftLang,
+                              isExpanded: true,
+                              dropdownColor: const Color(0xFF1B2838),
+                              icon: const Icon(Icons.arrow_drop_down,
+                                  color: Colors.white54),
+                              items: _languages.entries
+                                  .map((e) => DropdownMenuItem(
+                                        value: e.key,
+                                        child: Text(e.value,
+                                            style: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 13),
+                                            overflow:
+                                                TextOverflow.ellipsis),
+                                      ))
+                                  .toList(),
+                              onChanged: (v) {
+                                setState(() => _leftLang = v!);
+                                Provider.of<LanguageService>(context,
+                                        listen: false)
+                                    .saveLanguageForScreen(
+                                        'dialogue_left', v!);
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
 
-                const SizedBox(height: 12),
+                      // Swap
+                      IconButton(
+                        icon: const Icon(Icons.swap_horiz,
+                            color: Colors.amber, size: 28),
+                        onPressed: _swapLanguages,
+                        tooltip: 'تبديل اللغات',
+                      ),
 
-                // Lower Editor (translated - uses left button language)
-                Expanded(
-                  flex: 3,
-                  child: _buildEditor(
-                    controller: _lowerController,
-                    hint: 'الترجمة تظهر هنا...',
-                    isSource: false,
+                      // Mic (حجم كبير)
+                      GestureDetector(
+                        onTap: _handleMic,
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: _isListening
+                                ? Colors.redAccent
+                                : Colors.blueAccent,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: (_isListening
+                                        ? Colors.red
+                                        : Colors.blue)
+                                    .withOpacity(0.4),
+                                blurRadius: 15,
+                                spreadRadius: 3,
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            _isListening ? Icons.stop : Icons.mic,
+                            color: Colors.white,
+                            size: 32,
+                          ),
+                        ),
+                      ),
+
+                      // Right language button (source - للمحرر العلوي دائماً)
+                      Expanded(
+                        child: Container(
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 8),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: _rightLang,
+                              isExpanded: true,
+                              dropdownColor: const Color(0xFF1B2838),
+                              icon: const Icon(Icons.arrow_drop_down,
+                                  color: Colors.white54),
+                              items: _languages.entries
+                                  .map((e) => DropdownMenuItem(
+                                        value: e.key,
+                                        child: Text(e.value,
+                                            style: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 13),
+                                            overflow:
+                                                TextOverflow.ellipsis),
+                                      ))
+                                  .toList(),
+                              onChanged: (v) {
+                                setState(() => _rightLang = v!);
+                                Provider.of<LanguageService>(context,
+                                        listen: false)
+                                    .saveLanguageForScreen(
+                                        'dialogue_right', v!);
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+                const SizedBox(height: 12),
 
+                // Lower Editor (translated - يستخدم لغة الزر اليسار)
+                Expanded(
+                  flex: 3,
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blueAccent.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(
+                          color: Colors.blueAccent.withOpacity(0.2)),
+                    ),
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _lowerController,
+                            maxLines: null,
+                            expands: true,
+                            style: const TextStyle(
+                              color: Colors.amberAccent,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            textAlign: TextAlign.right,
+                            decoration: const InputDecoration(
+                              hintText: 'الترجمة تظهر هنا...',
+                              hintStyle: TextStyle(
+                                  color: Colors.white24, fontSize: 16),
+                              border: InputBorder.none,
+                            ),
+                          ),
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            if (_isTranslating)
+                              const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                    color: Colors.blueAccent,
+                                    strokeWidth: 2),
+                              ),
+                            const Spacer(),
+                            // سبيكر نطق الترجمة
+                            IconButton(
+                              icon: const Icon(Icons.volume_up,
+                                  color: Colors.blueAccent, size: 28),
+                              onPressed: _speakTranslation,
+                              tooltip: 'نطق الترجمة',
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 12),
 
                 // Branding
                 Opacity(
                   opacity: 0.3,
-                  child: Text(
+                  child: const Text(
                     "Mirror Scorpion Dialogue",
                     style: TextStyle(
-                        color: Colors.white, letterSpacing: 2, fontSize: 11),
+                        color: Colors.white,
+                        letterSpacing: 2,
+                        fontSize: 11),
                   ),
                 ),
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEditor({
-    required TextEditingController controller,
-    required String hint,
-    required bool isSource,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-      ),
-      child: Column(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: controller,
-              maxLines: null,
-              expands: true,
-              readOnly: isSource,
-              style: const TextStyle(color: Colors.white, fontSize: 20),
-              textAlign: TextAlign.right,
-              decoration: InputDecoration(
-                hintText: hint,
-                hintStyle: const TextStyle(color: Colors.white24, fontSize: 16),
-                border: InputBorder.none,
-              ),
-            ),
-          ),
-          if (!isSource)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                if (_isTranslating)
-                  const SizedBox(
-                    width: 20, height: 20,
-                    child: CircularProgressIndicator(
-                        color: Colors.blueAccent, strokeWidth: 2),
-                  ),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.volume_up,
-                      color: Colors.blueAccent, size: 28),
-                  onPressed: _speakTranslation,
-                  tooltip: 'نطق الترجمة',
-                ),
-              ],
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildControlsRow() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(30),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // Right language button (source)
-          Expanded(
-            child: _buildLangButton(_rightLang, (v) {
-              setState(() => _rightLang = v!);
-            }),
-          ),
-
-          // Swap
-          IconButton(
-            icon: const Icon(Icons.swap_horiz, color: Colors.amber, size: 28),
-            onPressed: _swapLanguages,
-            tooltip: 'تبديل اللغات',
-          ),
-
-          // Mic
-          GestureDetector(
-            onTap: _handleMic,
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: _isListening ? Colors.redAccent : Colors.blueAccent,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: (_isListening ? Colors.red : Colors.blue)
-                        .withValues(alpha: 0.4),
-                    blurRadius: 12,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: Icon(
-                _isListening ? Icons.stop : Icons.mic,
-                color: Colors.white, size: 28,
-              ),
-            ),
-          ),
-
-          // Left language button (target)
-          Expanded(
-            child: _buildLangButton(_leftLang, (v) {
-              setState(() => _leftLang = v!);
-            }),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLangButton(String value, ValueChanged<String?> onChanged) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: value,
-          isExpanded: true,
-          dropdownColor: const Color(0xFF1B2838),
-          icon: const Icon(Icons.arrow_drop_down, color: Colors.white54),
-          items: _languages.entries.map((e) {
-            return DropdownMenuItem(
-              value: e.key,
-              child: Text(e.value,
-                  style: const TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                  overflow: TextOverflow.ellipsis),
-            );
-          }).toList(),
-          onChanged: onChanged,
         ),
       ),
     );

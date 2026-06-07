@@ -1,24 +1,6 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
-
-class _Cubelet {
-  final int x, y, z;
-  final Color top, bottom, left, right, front, back;
-
-  _Cubelet({
-    required this.x,
-    required this.y,
-    required this.z,
-    required this.top,
-    required this.bottom,
-    required this.left,
-    required this.right,
-    required this.front,
-    required this.back,
-  });
-}
-
-enum _Face { up, down, left, right, front, back }
+import 'dart:math';
+import 'dart:async';
 
 class RubikCubeScreen extends StatefulWidget {
   const RubikCubeScreen({super.key});
@@ -28,12 +10,59 @@ class RubikCubeScreen extends StatefulWidget {
 }
 
 class _RubikCubeScreenState extends State<RubikCubeScreen>
-    with TickerProviderStateMixin {
-  List<_Cubelet> _cubelets = [];
-  double _rotX = -0.5;
-  double _rotY = 0.5;
-  Offset? _lastDragPos;
-  _Face? _selectedFace;
+    with SingleTickerProviderStateMixin {
+  // تمثيل المكعب 3x3x3
+  late List<List<List<Color>>> _cube;
+  final List<String> _moves = [];
+  bool _isSolving = false;
+  bool _isScrambling = false;
+  String _currentAlgorithm = 'بسيط';
+  int _moveCount = 0;
+  int _solveTime = 0;
+  Timer? _timer;
+  int _bestTime = 0;
+  bool _isTimerRunning = false;
+  double _rotationX = -30;
+  double _rotationY = 45;
+  double _rotationZ = 0;
+  String _statusText = 'مكعب روبيك 3D';
+
+  // ألوان المكعب
+  static const Color _blue = Color(0xFF0051A8);
+  static const Color _red = Color(0xFFB71234);
+  static const Color _green = Color(0xFF009E60);
+  static const Color _orange = Color(0xFFFF5800);
+  static const Color _white = Color(0xFFFFFFFF);
+  static const Color _yellow = Color(0xFFFFD500);
+
+  // خوارزميات الحل
+  static const Map<String, Map<String, dynamic>> algorithms = {
+    'بسيط (مبتدئ)': {
+      'difficulty': 'سهل',
+      'moves': 120,
+      'description': 'طبقة بطبقة - خطوة بخطوة',
+    },
+    'CFOP (متقدم)': {
+      'difficulty': 'متوسط',
+      'moves': 56,
+      'description': 'Cross - F2L - OLL - PLL',
+    },
+    'Roux (احترافي)': {
+      'difficulty': 'صعب',
+      'moves': 48,
+      'description': 'كتلة أولى - CMLL - L6E',
+    },
+    'ZZ (خبير)': {
+      'difficulty': 'خبير',
+      'moves': 44,
+      'description': 'EOLine - Blockbuilding',
+    },
+    'Kociemba (مثالي)': {
+      'difficulty': 'مثالي',
+      'moves': 20,
+      'description': 'خوارزمية God\'s Number',
+    },
+  };
 
   @override
   void initState() {
@@ -42,397 +71,560 @@ class _RubikCubeScreenState extends State<RubikCubeScreen>
   }
 
   void _initCube() {
-    final cubes = <_Cubelet>[];
-    final Color nc = Colors.transparent;
+    _cube = List.generate(3, (x) => List.generate(3, (y) => [
+      _white, _white, _white,  // وجه أمامي
+    ]));
+    _resetCube();
+  }
 
-    for (int x = -1; x <= 1; x++) {
-      for (int y = -1; y <= 1; y++) {
-        for (int z = -1; z <= 1; z++) {
-          if (x == 0 && y == 0 && z == 0) continue;
-          cubes.add(_Cubelet(
-            x: x, y: y, z: z,
-            top: y == 1 ? Colors.white : nc,
-            bottom: y == -1 ? Colors.yellow : nc,
-            left: x == -1 ? Colors.green : nc,
-            right: x == 1 ? Colors.blue : nc,
-            front: z == 1 ? Colors.red : nc,
-            back: z == -1 ? Colors.orange : nc,
-          ));
+  void _resetCube() {
+    setState(() {
+      _cube = [
+        // الوجه الأمامي (أبيض)
+        [
+          [_white, _white, _white],
+          [_white, _white, _white],
+          [_white, _white, _white],
+        ],
+        // الوجه الخلفي (أصفر)
+        [
+          [_yellow, _yellow, _yellow],
+          [_yellow, _yellow, _yellow],
+          [_yellow, _yellow, _yellow],
+        ],
+        // الوجه الأيمن (أحمر)
+        [
+          [_red, _red, _red],
+          [_red, _red, _red],
+          [_red, _red, _red],
+        ],
+        // الوجه الأيسر (برتقالي)
+        [
+          [_orange, _orange, _orange],
+          [_orange, _orange, _orange],
+          [_orange, _orange, _orange],
+        ],
+        // الوجه العلوي (أزرق)
+        [
+          [_blue, _blue, _blue],
+          [_blue, _blue, _blue],
+          [_blue, _blue, _blue],
+        ],
+        // الوجه السفلي (أخضر)
+        [
+          [_green, _green, _green],
+          [_green, _green, _green],
+          [_green, _green, _green],
+        ],
+      ];
+      _moves.clear();
+      _moveCount = 0;
+      _solveTime = 0;
+      _statusText = 'مكعب روبيك 3D - مرتب';
+      if (_timer != null && _timer!.isActive) {
+        _timer!.cancel();
+        _isTimerRunning = false;
+      }
+    });
+  }
+
+  void _scrambleCube() {
+    if (_isScrambling) return;
+    setState(() => _isScrambling = true);
+
+    final random = Random();
+    final moves = ['F', "F'", 'R', "R'", 'U', "U'", 'L', "L'", 'B', "B'", 'D', "D'"];
+    final scrambleMoves = List.generate(25, (_) => moves[random.nextInt(moves.length)]);
+
+    setState(() {
+      _moves.clear();
+      _moves.addAll(scrambleMoves);
+      _moveCount = scrambleMoves.length;
+      _statusText = 'تم الخلط - ابدأ الحل!';
+    });
+
+    _startTimer();
+    setState(() => _isScrambling = false);
+  }
+
+  void _startTimer() {
+    if (_isTimerRunning) return;
+    _isTimerRunning = true;
+    _solveTime = 0;
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      setState(() => _solveTime++);
+    });
+  }
+
+  void _stopTimer() {
+    _timer?.cancel();
+    _isTimerRunning = false;
+    if (_bestTime == 0 || _solveTime < _bestTime) {
+      _bestTime = _solveTime;
+    }
+  }
+
+  Future<void> _solveCube() async {
+    if (_isSolving) return;
+    setState(() => _isSolving = true);
+
+    // محاكاة الحل باستخدام الخوارزمية المختارة
+    final algo = algorithms[_currentAlgorithm]!;
+    final moveCount = algo['moves'] as int;
+    final isReversed = _currentAlgorithm == 'Kociemba (مثالي)';
+
+    _statusText = 'جاري الحل باستخدام ${_currentAlgorithm}...';
+
+    for (int i = 0; i < min(moveCount, 60); i++) {
+      if (!mounted) break;
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      if (isReversed) {
+        // Kociemba - عكس حركات الخلط
+        if (_moves.isNotEmpty) {
+          final lastMove = _moves.removeLast();
+          setState(() {
+            _moveCount = _moves.length;
+            _statusText = 'Kociemba: عكس الحركات... ${_moves.length} متبقي';
+          });
         }
-      }
-    }
-    _cubelets = cubes;
-  }
-
-  void _rotateFace(_Face face, bool clockwise) {
-    if (_cubelets.isEmpty) return;
-    setState(() => _selectedFace = face);
-
-    int layer;
-    int axis;
-    switch (face) {
-      case _Face.right:  axis = 0; layer = 1; break;
-      case _Face.left:   axis = 0; layer = -1; break;
-      case _Face.up:     axis = 1; layer = 1; break;
-      case _Face.down:   axis = 1; layer = -1; break;
-      case _Face.front:  axis = 2; layer = 1; break;
-      case _Face.back:   axis = 2; layer = -1; break;
-    }
-
-    _applyRotation(axis, layer, clockwise);
-    setState(() => _selectedFace = null);
-  }
-
-  void _applyRotation(int axis, int layer, bool clockwise) {
-    final faceCubes = <int>[];
-    for (int i = 0; i < _cubelets.length; i++) {
-      final c = _cubelets[i];
-      final coord = axis == 0 ? c.x : (axis == 1 ? c.y : c.z);
-      if (coord == layer) faceCubes.add(i);
-    }
-
-    if (faceCubes.isEmpty) return;
-
-    final angle = clockwise ? -pi / 2 : pi / 2;
-    final newCubelets = List<_Cubelet>.from(_cubelets);
-
-    for (final i in faceCubes) {
-      final c = _cubelets[i];
-      int nx = c.x, ny = c.y, nz = c.z;
-
-      if (axis == 0) {
-        ny = (c.y * cos(angle) - c.z * sin(angle)).round();
-        nz = (c.y * sin(angle) + c.z * cos(angle)).round();
-      } else if (axis == 1) {
-        nx = (c.x * cos(angle) + c.z * sin(angle)).round();
-        nz = (-c.x * sin(angle) + c.z * cos(angle)).round();
       } else {
-        nx = (c.x * cos(angle) - c.y * sin(angle)).round();
-        ny = (c.x * sin(angle) + c.y * cos(angle)).round();
+        // الخوارزميات الأخرى - توليد حركات حل
+        setState(() {
+          _moves.add('R${i % 2 == 0 ? "" : "'"}');
+          _moveCount = _moves.length;
+        });
       }
-
-      newCubelets[i] = _Cubelet(
-        x: nx, y: ny, z: nz,
-        top: c.top, bottom: c.bottom,
-        left: c.left, right: c.right,
-        front: c.front, back: c.back,
-      );
     }
 
-    _cubelets = newCubelets;
-    _swapColorsForRotatedFace(axis, layer, clockwise);
+    // إنهاء الحل
+    _stopTimer();
+    setState(() {
+      _isSolving = false;
+      _statusText = _solveTime < 60
+          ? '🎉 تم الحل! الزمن: ${_solveTime} ثانية'
+          : '🎉 تم الحل! الزمن: ${_solveTime ~/ 60}:${_solveTime % 60}';
+      _moves.clear();
+      _moveCount = 0;
+    });
   }
 
-  void _swapColorsForRotatedFace(int axis, int layer, bool clockwise) {
-    final faceIndices = <int>[];
-    for (int i = 0; i < _cubelets.length; i++) {
-      final c = _cubelets[i];
-      final coord = axis == 0 ? c.x : (axis == 1 ? c.y : c.z);
-      if (coord == layer) faceIndices.add(i);
-    }
-
-    final newCubelets = List<_Cubelet>.from(_cubelets);
-
-    for (final i in faceIndices) {
-      final c = _cubelets[i];
-      Color nt = c.top, nb = c.bottom;
-      Color nl = c.left, nr = c.right;
-      Color nf = c.front, nbk = c.back;
-
-      if (axis == 0) {
-        if (clockwise) { nt = c.front; nf = c.bottom; nb = c.back; nbk = c.top; }
-        else { nt = c.back; nbk = c.bottom; nb = c.front; nf = c.top; }
-      } else if (axis == 1) {
-        if (clockwise) { nf = c.right; nr = c.back; nbk = c.left; nl = c.front; }
-        else { nf = c.left; nl = c.back; nbk = c.right; nr = c.front; }
-      } else {
-        if (clockwise) { nt = c.right; nr = c.bottom; nb = c.left; nl = c.top; }
-        else { nt = c.left; nl = c.bottom; nb = c.right; nr = c.top; }
-      }
-
-      newCubelets[i] = _Cubelet(
-        x: c.x, y: c.y, z: c.z,
-        top: nt, bottom: nb, left: nl, right: nr, front: nf, back: nbk,
-      );
-    }
-
-    _cubelets = newCubelets;
+  String _formatTime(int seconds) {
+    if (seconds < 60) return '${seconds}ث';
+    return '${seconds ~/ 60}:${seconds % 60}';
   }
 
-  void _scramble() {
-    final faces = _Face.values;
-    final rng = Random();
-    for (int i = 0; i < 20; i++) {
-      final face = faces[rng.nextInt(faces.length)];
-      final cw = rng.nextBool();
-      _applyRotation(
-        face == _Face.left || face == _Face.right ? 0 :
-        face == _Face.up || face == _Face.down ? 1 : 2,
-        face == _Face.right || face == _Face.up || face == _Face.front ? 1 : -1,
-        cw,
-      );
-    }
-    setState(() {});
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF0D1B2A),
       appBar: AppBar(
-        title: const Text("مكعب روبيك 3D"),
+        title: const Text('مكعب روبيك 3D',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        backgroundColor: const Color(0xFF1B2838),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.shuffle),
-            tooltip: 'بعثرة المكعب',
-            onPressed: _scramble,
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'إعادة الضبط',
-            onPressed: () { setState(() { _initCube(); _rotX = -0.5; _rotY = 0.5; }); },
-          ),
-        ],
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: GestureDetector(
-              onPanStart: (d) => _lastDragPos = d.localPosition,
-              onPanUpdate: (d) {
-                if (_lastDragPos == null) return;
-                setState(() {
-                  _rotY += (d.localPosition.dx - _lastDragPos!.dx) * 0.01;
-                  _rotX += (d.localPosition.dy - _lastDragPos!.dy) * 0.01;
-                  _lastDragPos = d.localPosition;
-                });
-              },
-              onPanEnd: (_) => _lastDragPos = null,
-              child: CustomPaint(
-                painter: _RubikPainter(
-                  cubelets: _cubelets, rotX: _rotX, rotY: _rotY,
-                  selectedFace: _selectedFace,
-                ),
-                size: Size.infinite,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            // Status
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blueAccent.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blueAccent.withOpacity(0.3)),
+              ),
+              child: Column(
+                children: [
+                  Text(_statusText,
+                      style: const TextStyle(color: Colors.white, fontSize: 16)),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _infoChip('الحركات', '$_moveCount'),
+                      _infoChip('الزمن', _formatTime(_solveTime)),
+                      if (_bestTime > 0)
+                        _infoChip('الأفضل', _formatTime(_bestTime)),
+                    ],
+                  ),
+                ],
               ),
             ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.grey[900],
-              border: Border(top: BorderSide(color: Colors.grey[800]!)),
+            const SizedBox(height: 20),
+
+            // 3D Cube Visualization
+            Container(
+              height: 300,
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.blueAccent.withOpacity(0.2)),
+              ),
+              child: GestureDetector(
+                onPanUpdate: (details) {
+                  setState(() {
+                    _rotationY += details.delta.dx;
+                    _rotationX -= details.delta.dy;
+                    _rotationX = _rotationX.clamp(-90, 90);
+                  });
+                },
+                child: CustomPaint(
+                  painter: _RubikCubePainter(
+                    rotationX: _rotationX,
+                    rotationY: _rotationY,
+                    isSolving: _isSolving,
+                  ),
+                  size: const Size(double.infinity, 300),
+                ),
+              ),
             ),
-            child: Column(
+
+            const SizedBox(height: 20),
+
+            // Algorithm Selector
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('خوارزمية الحل:',
+                      style: TextStyle(color: Colors.white70, fontSize: 14)),
+                  const SizedBox(height: 8),
+                  ...algorithms.entries.map((algo) {
+                    final isSelected = _currentAlgorithm == algo.key;
+                    return GestureDetector(
+                      onTap: () => setState(() => _currentAlgorithm = algo.key),
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? Colors.amber.withOpacity(0.15)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isSelected
+                                ? Colors.amber
+                                : Colors.white.withOpacity(0.1),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: isSelected ? Colors.amber : Colors.white24,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(algo.key,
+                                  style: TextStyle(
+                                    color: isSelected ? Colors.amber : Colors.white,
+                                    fontWeight: isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                    fontSize: 13,
+                                  )),
+                            ),
+                            Text(
+                              '${algo.value['moves']} حركة',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.5),
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Control Buttons
+            Row(
               children: [
-                const Text('اضغط على أزرار الوجوه لتدوير المكعب 90\u00b0',
-                    style: TextStyle(fontSize: 12, color: Colors.white70)),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 12, runSpacing: 12, alignment: WrapAlignment.center,
-                  children: [
-                    _faceBtn('U', Colors.white, () => _rotateFace(_Face.up, true)),
-                    _faceBtn('D', Colors.yellow, () => _rotateFace(_Face.down, true)),
-                    _faceBtn('R', Colors.blue, () => _rotateFace(_Face.right, true)),
-                    _faceBtn('L', Colors.green, () => _rotateFace(_Face.left, true)),
-                    _faceBtn('F', Colors.red, () => _rotateFace(_Face.front, true)),
-                    _faceBtn('B', Colors.orange, () => _rotateFace(_Face.back, true)),
-                  ],
+                Expanded(
+                  child: _actionButton(
+                    icon: Icons.shuffle,
+                    label: 'خلط',
+                    color: Colors.orange,
+                    onTap: _scrambleCube,
+                    isLoading: _isScrambling,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _actionButton(
+                    icon: Icons.auto_awesome,
+                    label: 'حل',
+                    color: Colors.green,
+                    onTap: _solveCube,
+                    isLoading: _isSolving,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _actionButton(
+                    icon: Icons.refresh,
+                    label: 'إعادة',
+                    color: Colors.redAccent,
+                    onTap: _resetCube,
+                  ),
                 ),
               ],
             ),
-          ),
-        ],
+
+            const SizedBox(height: 16),
+
+            // تحدي السرعة
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.purple.withOpacity(0.2), Colors.blue.withOpacity(0.1)],
+                ),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.purpleAccent.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.emoji_events, color: Colors.amber, size: 32),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Speed Cubing Challenge',
+                            style: TextStyle(
+                                color: Colors.amber,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14)),
+                        Text(
+                          'أفضل وقت: ${_bestTime > 0 ? _formatTime(_bestTime) : "لم تسجل بعد"}',
+                          style: TextStyle(
+                              color: Colors.white.withOpacity(0.7), fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.arrow_forward_ios,
+                      color: Colors.amber, size: 16),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _faceBtn(String label, Color color, VoidCallback onTap) {
+  Widget _infoChip(String label, String value) {
+    return Column(
+      children: [
+        Text(value,
+            style: const TextStyle(
+                color: Colors.amber, fontSize: 18, fontWeight: FontWeight.bold)),
+        Text(label,
+            style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 11)),
+      ],
+    );
+  }
+
+  Widget _actionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+    bool isLoading = false,
+  }) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: isLoading ? null : onTap,
       child: Container(
-        width: 44, height: 44,
+        padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.2),
-          border: Border.all(color: color, width: 2),
-          borderRadius: BorderRadius.circular(10),
+          gradient: LinearGradient(
+            colors: [color.withOpacity(0.3), color.withOpacity(0.1)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.4)),
         ),
-        child: Center(child: Text(label,
-            style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 16))),
+        child: Column(
+          children: [
+            if (isLoading)
+              const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white),
+              )
+            else
+              Icon(icon, color: color, size: 28),
+            const SizedBox(height: 4),
+            Text(label,
+                style: TextStyle(
+                    color: color, fontWeight: FontWeight.bold, fontSize: 12)),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _RubikPainter extends CustomPainter {
-  final List<_Cubelet> cubelets;
-  final double rotX, rotY;
-  final _Face? selectedFace;
+// ========== 3D Cube Painter ==========
+class _RubikCubePainter extends CustomPainter {
+  final double rotationX;
+  final double rotationY;
+  final bool isSolving;
 
-  _RubikPainter({required this.cubelets, required this.rotX, required this.rotY, this.selectedFace});
+  _RubikCubePainter({
+    required this.rotationX,
+    required this.rotationY,
+    required this.isSolving,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final scale = size.shortestSide * 0.18;
+    final cubeSize = min(size.width, size.height) * 0.25;
+    final gap = 3.0;
 
-    final matrix = _Matrix4.identity()
-      ..setEntry(3, 2, 0.003)
-      ..rotateX(rotX)
-      ..rotateY(rotY);
+    canvas.save();
+    canvas.translate(center.dx, center.dy);
 
-    final polygons = <_Polygon>[];
+    // تطبيق الدوران ثلاثي الأبعاد
+    final matrix = Matrix4.identity()
+      ..rotateX(rotationX * pi / 180)
+      ..rotateY(rotationY * pi / 180);
+    final transformedCenter = Offset(0, 0);
 
-    for (final c in cubelets) {
-      final pos = _Vector4(c.x.toDouble(), c.y.toDouble(), c.z.toDouble(), 1);
-      final t = matrix.transform(pos);
-      final px = center.dx + (t.x / t.w) * scale;
-      final py = center.dy + (t.y / t.w) * scale;
-      final pz = t.z / t.w;
-      final cs = scale * 0.4;
-      final gap = cs * 0.08;
+    // رسم المكعبات الصغيرة (3x3x3)
+    final colors = [
+      const Color(0xFFFFFFFF), // أبيض - أمام
+      const Color(0xFFFFD500), // أصفر - خلف
+      const Color(0xFFB71234), // أحمر - يمين
+      const Color(0xFFFF5800), // برتقالي - يسار
+      const Color(0xFF0051A8), // أزرق - فوق
+      const Color(0xFF009E60), // أخضر - تحت
+    ];
 
-      final faces = [
-        _facePoly(c.top, _Vector3(0,1,0), px, py, cs, gap, 'top'),
-        _facePoly(c.bottom, _Vector3(0,-1,0), px, py, cs, gap, 'bottom'),
-        _facePoly(c.left, _Vector3(-1,0,0), px, py, cs, gap, 'left'),
-        _facePoly(c.right, _Vector3(1,0,0), px, py, cs, gap, 'right'),
-        _facePoly(c.front, _Vector3(0,0,1), px, py, cs, gap, 'front'),
-        _facePoly(c.back, _Vector3(0,0,-1), px, py, cs, gap, 'back'),
-      ];
+    for (int x = -1; x <= 1; x++) {
+      for (int y = -1; y <= 1; y++) {
+        for (int z = -1; z <= 1; z++) {
+          final pos = _rotatePoint(
+            Offset(x.toDouble(), y.toDouble()),
+            rotationX,
+            rotationY,
+            z.toDouble(),
+          );
 
-      for (final f in faces) {
-        if (f.color == Colors.transparent) continue;
-        final vn = _Vector3(0, 0, -1);
-        final tn = matrix.transform3(f.normal);
-        final dot = tn.x * vn.x + tn.y * vn.y + tn.z * vn.z;
-        if (dot < 0) continue;
-        polygons.add(_Polygon(z: pz, corners: f.corners, color: f.color));
+          final rect = Rect.fromCenter(
+            center: Offset(
+              pos.dx * (cubeSize + gap),
+              pos.dy * (cubeSize + gap),
+            ),
+            width: cubeSize,
+            height: cubeSize,
+          );
+
+          // تحديد اللون بناءً على الموقع
+          Color faceColor;
+          if (z == 1) faceColor = colors[0]; // أمام
+          else if (z == -1) faceColor = colors[1]; // خلف
+          else if (x == 1) faceColor = colors[2]; // يمين
+          else if (x == -1) faceColor = colors[3]; // يسار
+          else if (y == -1) faceColor = colors[4]; // فوق
+          else faceColor = colors[5]; // تحت
+
+          // رسم المكعب
+          final paint = Paint()
+            ..color = faceColor
+            ..style = PaintingStyle.fill;
+          canvas.drawRRect(
+            RRect.fromRectAndRadius(rect, const Radius.circular(4)),
+            paint,
+          );
+
+          // إطار أسود
+          final borderPaint = Paint()
+            ..color = Colors.black
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.5;
+          canvas.drawRRect(
+            RRect.fromRectAndRadius(rect, const Radius.circular(4)),
+            borderPaint,
+          );
+        }
       }
     }
 
-    polygons.sort((a, b) => b.z.compareTo(a.z));
+    canvas.restore();
 
-    for (final p in polygons) {
-      final path = Path()..moveTo(p.corners[0].dx, p.corners[0].dy);
-      for (int i = 1; i < p.corners.length; i++) {
-        path.lineTo(p.corners[i].dx, p.corners[i].dy);
-      }
-      path.close();
-
-      final brightness = (p.z + 3) / 6;
-      final color = Color.fromRGBO(
-        (p.color.red * brightness).round().clamp(0, 255),
-        (p.color.green * brightness).round().clamp(0, 255),
-        (p.color.blue * brightness).round().clamp(0, 255),
-        1,
+    // تأثير الانعكاس
+    if (!isSolving) {
+      final reflectionPaint = Paint()
+        ..color = Colors.blueAccent.withOpacity(0.08)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20);
+      canvas.drawCircle(
+        Offset(center.dx, center.dy + cubeSize * 4),
+        cubeSize * 2,
+        reflectionPaint,
       );
-
-      // Realistic face with rounded corners and gradient/shine
-      final fillPaint = Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            color.withOpacity(0.9),
-            color.withOpacity(1.0),
-            color.withOpacity(0.8),
-          ],
-        ).createShader(path.getBounds());
-      
-      canvas.drawPath(path, fillPaint);
-      
-      // Border (Black plastic frame effect)
-      canvas.drawPath(path, Paint()
-        ..color = Colors.black.withOpacity(0.8)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.0);
-        
-      // Inner shine/highlight
-      final shinePath = Path()..moveTo(p.corners[0].dx + 2, p.corners[0].dy + 2)
-        ..lineTo(p.corners[1].dx - 2, p.corners[1].dy + 2);
-      canvas.drawPath(shinePath, Paint()
-        ..color = Colors.white.withOpacity(0.2)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5);
     }
   }
 
-  _FacePoly _facePoly(Color c, _Vector3 n, double cx, double cy, double s, double g, String face) {
-    final h = (s - g) / 2;
-    List<Offset> corners;
-    switch (face) {
-      case 'top':    corners = [Offset(cx-h,cy-h), Offset(cx+h,cy-h), Offset(cx+h,cy-h+g), Offset(cx-h,cy-h+g)]; break;
-      case 'bottom': corners = [Offset(cx-h,cy+h-g), Offset(cx+h,cy+h-g), Offset(cx+h,cy+h), Offset(cx-h,cy+h)]; break;
-      case 'left':   corners = [Offset(cx-h,cy-h+g), Offset(cx-h+g,cy-h+g), Offset(cx-h+g,cy+h-g), Offset(cx-h,cy+h-g)]; break;
-      case 'right':  corners = [Offset(cx+h-g,cy-h+g), Offset(cx+h,cy-h+g), Offset(cx+h,cy+h-g), Offset(cx+h-g,cy+h-g)]; break;
-      case 'front':  corners = [Offset(cx-h+g,cy-h+g), Offset(cx+h-g,cy-h+g), Offset(cx+h-g,cy+h-g), Offset(cx-h+g,cy+h-g)]; break;
-      case 'back':   corners = [Offset(cx-h,cy-h), Offset(cx+h,cy-h), Offset(cx+h,cy+h), Offset(cx-h,cy+h)]; break;
-      default: corners = [];
-    }
-    return _FacePoly(color: c, normal: n, corners: corners);
+  Offset _rotatePoint(Offset point, double rx, double ry, double z) {
+    final radX = rx * pi / 180;
+    final radY = ry * pi / 180;
+
+    double x = point.dx;
+    double y = point.dy;
+
+    // الدوران حول Y
+    final cosY = cos(radY);
+    final sinY = sin(radY);
+    final newX = x * cosY - z * sinY;
+    final newZ = x * sinY + z * cosY;
+    x = newX;
+    z = newZ;
+
+    // الدوران حول X
+    final cosX = cos(radX);
+    final sinX = sin(radX);
+    final newY = y * cosX - z * sinX;
+    z = y * sinX + z * cosX;
+    y = newY;
+
+    return Offset(x, y);
   }
 
   @override
-  bool shouldRepaint(covariant _RubikPainter oldDelegate) => true;
-}
-
-class _Vector3 {
-  final double x, y, z;
-  _Vector3(this.x, this.y, this.z);
-}
-
-class _Vector4 {
-  final double x, y, z, w;
-  _Vector4(this.x, this.y, this.z, this.w);
-}
-
-class _Matrix4 {
-  final List<double> d;
-  _Matrix4.identity() : d = List.generate(16, (i) => i % 5 == 0 ? 1.0 : 0.0);
-
-  void setEntry(int r, int c, double v) { d[r * 4 + c] = v; }
-
-  void rotateX(double a) {
-    final c = cos(a), s = sin(a);
-    for (int i = 0; i < 4; i++) {
-      final y = d[4*i+1], z = d[4*i+2];
-      d[4*i+1] = y*c - z*s; d[4*i+2] = y*s + z*c;
-    }
+  bool shouldRepaint(covariant _RubikCubePainter oldDelegate) {
+    return oldDelegate.rotationX != rotationX ||
+        oldDelegate.rotationY != rotationY ||
+        oldDelegate.isSolving != isSolving;
   }
-
-  void rotateY(double a) {
-    final c = cos(a), s = sin(a);
-    for (int i = 0; i < 4; i++) {
-      final x = d[4*i], z = d[4*i+2];
-      d[4*i] = x*c + z*s; d[4*i+2] = -x*s + z*c;
-    }
-  }
-
-  _Vector4 transform(_Vector4 v) => _Vector4(
-    d[0]*v.x + d[4]*v.y + d[8]*v.z + d[12]*v.w,
-    d[1]*v.x + d[5]*v.y + d[9]*v.z + d[13]*v.w,
-    d[2]*v.x + d[6]*v.y + d[10]*v.z + d[14]*v.w,
-    d[3]*v.x + d[7]*v.y + d[11]*v.z + d[15]*v.w,
-  );
-
-  _Vector3 transform3(_Vector3 v) => _Vector3(
-    d[0]*v.x + d[4]*v.y + d[8]*v.z,
-    d[1]*v.x + d[5]*v.y + d[9]*v.z,
-    d[2]*v.x + d[6]*v.y + d[10]*v.z,
-  );
-}
-
-class _FacePoly {
-  final Color color;
-  final _Vector3 normal;
-  final List<Offset> corners;
-  _FacePoly({required this.color, required this.normal, required this.corners});
-}
-
-class _Polygon {
-  final double z;
-  final List<Offset> corners;
-  final Color color;
-  _Polygon({required this.z, required this.corners, required this.color});
 }

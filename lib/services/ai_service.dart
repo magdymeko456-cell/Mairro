@@ -1,236 +1,89 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:flutter/foundation.dart';
+import 'dart:math';
+import 'package:google_generative_ai/google_generative_ai.dart';
 
-/// AIService - Provides AI-powered inspiration and spiritual support
-/// Uses OpenAI API for generating personalized messages based on user mood/context
 class AIService {
-  static const String _apiEndpoint = 'https://api.openai.com/v1/chat/completions';
-  static const String _modelName = 'gpt-3.5-turbo';
-  
-  // For demo purposes, we'll use local inspirational messages
-  // In production, replace with actual API calls
-  
-  static final List<String> _inspirationalMessages = [
-    'تذكّر أن كل تحدٍ هو فرصة لتصبح أقوى وأحكم. 🌟',
-    'الصبر مفتاح الفرج، والدعاء سلاح المؤمن. 💪',
-    'لا تستسلم للأحزان، فالفجر يأتي بعد أطول ليل. 🌅',
-    'أنت أقوى مما تعتقد، وقادر على تحقيق أحلامك. ✨',
-    'كل خطوة صغيرة نحو الأمام هي انتصار حقيقي. 🚀',
-    'الحياة اختبار، والصبر هو المفتاح. 🔑',
-    'تعلم من أخطائك، ولا تستسلم أبداً. 📚',
-    'أنت تستحق السعادة والنجاح. 🎯',
-    'الله معك في كل خطوة. 🤲',
-    'هذا اليوم هو فرصة جديدة للبدء من جديد. 🌈',
+  static final Random _random = Random();
+  static const String _apiKey = "YOUR_GEMINI_API_KEY_HERE";
+
+  static const List<String> _inspirationMessages = [
+    "لا تيأس، فالله معك. كل انكسار هو بداية انطلاقة أعظم.",
+    "الوقت هو العملة الأغلى، استثمر كل ثانية في بناء نفسك.",
+    "الماضي ليس للمحو بل للتعلم، والمستقبل هو ما يستحق انتباهك الآن.",
+    "قوتك الحقيقية تكمن في قدرتك على النهوض بعد كل سقوط.",
+    "لا تقارن نفسك بالآخرين، فلك طريقك الخاص الذي يميزك.",
+    "الصبر مفتاح الفرج، وكل ضيق يأتي بعده فرج عظيم.",
+    "أنت أقوى مما تتصور، وأعظم مما تتخيل.",
+    "اليوم هو فرصة جديدة لبداية جديدة.",
+    "لا تؤجل حلمك إلى الغد، فاليوم هو أفضل وقت للبدء.",
+    "الثقة بالنفس هي أول خطوة نحو النجاح.",
   ];
 
-  static final List<String> _motivationalQuotes = [
-    '"الحياة ليست عن الانتظار حتى تمر العاصفة، بل عن تعلم الرقص تحت المطر." - فيرا',
-    '"النجاح لا يأتي من الحظ، بل من العمل الجاد والإصرار." - توماس إديسون',
-    '"كل ما تحتاجه هو الإيمان والعزيمة." - محمد علي',
-    '"لا تخافوا من الفشل، خافوا من عدم المحاولة." - جاك ما',
-    '"الحياة جميلة عندما تركز على الأشياء الصغيرة." - جون رسكين',
-    '"أنت لست وحدك في هذا الطريق." - أنت',
-    '"الأمل هو أقوى سلاح لدينا." - نيلسون مانديلا',
-    '"كل يوم جديد هو فرصة جديدة." - رالف مارستون',
-  ];
-
-  static final List<String> _comfortMessages = [
-    'أنت لست وحدك في هذا الشعور. الكثيرون يمرون بما تمر به. 🤝',
-    'هذا الشعور مؤقت، وسيمر. تحلى بالصبر. ⏳',
-    'تذكّر أن الله لا يضع عليك أكثر مما تستطيع تحمله. 🙏',
-    'احرص على الاعتناء بنفسك أولاً. 💚',
-    'لا تتردد في طلب المساعدة من الآخرين. 🤲',
-    'أنت أقوى مما تعتقد، وستتجاوز هذا. 💪',
-    'خذ نفساً عميقاً وركز على اللحظة الحالية. 🧘',
-    'هذه اللحظة الصعبة ستمر، وستكون أقوى بعدها. 🌟',
-  ];
-
-  static final List<String> _celebrationMessages = [
-    'مبروك! أنت تستحق هذا النجاح! 🎉',
-    'ما أجمل هذا الشعور! استمتع بلحظتك. 🌟',
-    'أنت فعلاً رائع! تابع هذا الطريق. 🚀',
-    'فخور بك! استمر في العطاء. 💪',
-    'هذا هو بداية أشياء عظيمة. 🎯',
-    'احتفل بإنجازاتك، مهما كانت صغيرة. 🎊',
-    'أنت تثبت أنك قادر على تحقيق أحلامك. ✨',
-    'هذا النجاح يستحق أن تفخر به. 👑',
-  ];
-
-  /// Generate inspiration based on user mood/context
   static Future<String> generateInspiration({
     required String userMood,
     required String context,
-    bool isPremium = false,
   }) async {
+    // محاولة استخدام Gemini API أولاً
     try {
-      // Analyze mood and return appropriate message
-      String message = '';
-      String personalPrefix = '';
-      
-      if (userMood.isEmpty) {
-        message = _inspirationalMessages[DateTime.now().microsecond % _inspirationalMessages.length];
-        personalPrefix = "بناءً على ما قمت به من محاولات جادة اليوم، ميرور سكربيون يخبرك:";
-      } else if (_isSadMood(userMood)) {
-        message = _comfortMessages[DateTime.now().microsecond % _comfortMessages.length];
-        personalPrefix = "يبدو أنك تمر بوقت عصيب، لكن تذكر:";
-      } else if (_isHappyMood(userMood)) {
-        message = _celebrationMessages[DateTime.now().microsecond % _celebrationMessages.length];
-        personalPrefix = "نجاحك يسعدنا! نصيحة ميرور سكربيون لك:";
-      } else {
-        message = _motivationalQuotes[DateTime.now().microsecond % _motivationalQuotes.length];
-        personalPrefix = "إليك جرعة إلهام مخصصة لك:";
-      }
-
-      return "$personalPrefix\n\n$message\n\nتذكر دائماً.. قصتك لا تزال تُكتب، والنهاية لم يحن وقتها بعد. ✨";
-    } catch (e) {
-      debugPrint('Error generating inspiration: $e');
-      return 'تذكّر أن الله معك دائماً. 🤲';
-    }
-  }
-
-  /// Generate an image prompt based on the inspiration message
-  static String generateImagePrompt(String message) {
-    // Manus-style prompt engineering
-    return "Islamic spiritual art, $message, cinematic lighting, ethereal atmosphere, calligraphy elements, 8k resolution, serene landscape background, golden hour";
-  }
-
-  /// Simulate Manus Image Generation
-  static Future<String> generateManusImage(String prompt) async {
-    // In a real app, this would call a DALL-E or Midjourney API
-    // For now, we return a high-quality placeholder image based on the prompt
-    await Future.delayed(const Duration(seconds: 2)); // Simulate generation time
-    return "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80";
-  }
-
-  /// Get spiritual support message
-  static Future<String> getSpiritualSupport({
-    required String userState,
-    bool isPremium = false,
-  }) async {
-    try {
-      if (_isSadMood(userState)) {
-        return 'يا رب، أنت تعلم ما في قلبي. ساعدني وقويني. 🤲';
-      } else if (_isStressedMood(userState)) {
-        return 'توكلت على الله، وهو حسبي. 🙏';
-      } else {
-        return 'الحمد لله على كل نعمه. 🌟';
+      if (_apiKey != "YOUR_GEMINI_API_KEY_HERE") {
+        final model = GenerativeModel(model: 'gemini-1.5-flash', apiKey: _apiKey);
+        final prompt = """
+أنت 'أدهم'، الصديق المقرب عبر الإنترنت والمستشار الروحي المخلص.
+المستخدم الآن في حالة نفسية ومزاجية: ($userMood).
+السياق الحالي هو: ($context).
+وجه له رسالة ملهمة، قصيرة جداً وقوية ومؤثرة باللغة العربية.
+شجعه على الإنجاز، واجعل كلماتها تلمس روحه وتدفع عزيمته للأمام فوراً.
+""";
+        final content = [Content.text(prompt)];
+        final response = await model.generateContent(content);
+        return response.text ?? _getLocalMessage(userMood);
       }
     } catch (e) {
-      debugPrint('Error getting spiritual support: $e');
-      return 'استعن بالله ولا تعجز. 💪';
+      debugPrint('AI API error, using local: $e');
     }
+    // Fallback محلي
+    return _getLocalMessage(userMood);
   }
 
-  /// Generate daily wisdom notification
-  static Future<String> generateDailyWisdom() async {
-    try {
-      final random = DateTime.now().microsecond;
-      final allMessages = [
-        ..._inspirationalMessages,
-        ..._motivationalQuotes,
-        ..._comfortMessages,
-      ];
-      return allMessages[random % allMessages.length];
-    } catch (e) {
-      debugPrint('Error generating daily wisdom: $e');
-      return 'بسم الله الرحمن الرحيم';
-    }
-  }
-
-  /// Analyze text sentiment for mood detection
-  static Future<String> analyzeSentiment(String text) async {
-    try {
-      // Simple keyword-based sentiment analysis
-      if (_isSadMood(text)) {
-        return 'sad';
-      } else if (_isHappyMood(text)) {
-        return 'happy';
-      } else if (_isStressedMood(text)) {
-        return 'stressed';
-      } else {
-        return 'neutral';
+  static String _getLocalMessage(String userMood) {
+    if (userMood.isNotEmpty) {
+      if (userMood.contains('حزين') || userMood.contains('تعبان') || 
+          userMood.contains('ضيق') || userMood.contains('تعب') || 
+          userMood.contains('زعلان')) {
+        return "أعلم أن الأوقات صعبة، ولكن تذكر أن الله لا يكلف نفساً إلا وسعها. "
+            "أنت قادر على تخطي هذه المحنة، وستخرج منها أقوى مما كنت. "
+            "قال تعالى: {إِنَّ مَعَ الْعُسْرِ يُسْرًا}";
       }
-    } catch (e) {
-      debugPrint('Error analyzing sentiment: $e');
-      return 'neutral';
+      if (userMood.contains('فرح') || userMood.contains('سعيد') || 
+          userMood.contains('نجاح') || userMood.contains('مبسوط')) {
+        return "الحمد لله على نعمة الفرح. تذكر أن تبقى متواضعاً في نجاحك، "
+            "وأن تشكر الله على ما أعطاك. الفرح الحقيقي هو في مشاركته مع الآخرين.";
+      }
     }
+    return _inspirationMessages[_random.nextInt(_inspirationMessages.length)];
   }
 
-  // --- Helper Methods ---
-  
-  static bool _isSadMood(String text) {
-    final sadKeywords = [
-      'حزين', 'حزن', 'كئيب', 'مكتئب', 'اكتئاب', 'وحيد', 'وحدة',
-      'يأس', 'يائس', 'فشل', 'فاشل', 'خسرت', 'خسارة', 'مؤلم',
-      'ألم', 'تعب', 'متعب', 'إرهاق', 'مرهق', 'حزين', 'كسر',
-      'مكسور', 'فقدت', 'فقدان', 'وفاة', 'مات', 'مرض', 'مريض',
-      'sad', 'depressed', 'lonely', 'hurt', 'pain', 'loss', 'fail',
-    ];
-    return sadKeywords.any((keyword) => text.toLowerCase().contains(keyword));
+  static Future<String> generatePersonalizedMessage(String userId) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    return "مرحباً! 🌟\n\n${_inspirationMessages[_random.nextInt(_inspirationMessages.length)]}\n\n- مانوس AI";
   }
 
-  static bool _isHappyMood(String text) {
-    final happyKeywords = [
-      'سعيد', 'سعادة', 'فرح', 'فرحان', 'مسرور', 'سرور', 'بهجة',
-      'نجح', 'نجاح', 'فاز', 'فوز', 'انتصار', 'رائع', 'عظيم',
-      'ممتاز', 'جميل', 'جمال', 'حب', 'أحب', 'أحبك', 'عشق',
-      'happy', 'joy', 'excited', 'wonderful', 'amazing', 'great',
-      'success', 'won', 'love', 'beautiful', 'excellent',
-    ];
-    return happyKeywords.any((keyword) => text.toLowerCase().contains(keyword));
+  static Future<String> generateStoryIntro(String storyTitle) async {
+    return "قصة $storyTitle: رحلة مليئة بالعبر والدروس المستفادة";
   }
 
-  static bool _isStressedMood(String text) {
-    final stressedKeywords = [
-      'قلق', 'قلق', 'خوف', 'خائف', 'توتر', 'متوتر', 'ضغط',
-      'مضغوط', 'مشكلة', 'مشاكل', 'صعب', 'صعوبة', 'عسير',
-      'محرج', 'حرج', 'خجل', 'خجول', 'خائب', 'خيبة',
-      'stressed', 'anxious', 'worried', 'afraid', 'scared', 'problem',
-      'difficult', 'hard', 'tough', 'pressure',
-    ];
-    return stressedKeywords.any((keyword) => text.toLowerCase().contains(keyword));
-  }
-
-  /// Call OpenAI API (for premium version)
-  static Future<String> callOpenAIAPI({
-    required String prompt,
-    required String apiKey,
-  }) async {
+  static Future<String> translateText(String text, String targetLang) async {
     try {
-      final response = await http.post(
-        Uri.parse(_apiEndpoint),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $apiKey',
-        },
-        body: jsonEncode({
-          'model': _modelName,
-          'messages': [
-            {
-              'role': 'system',
-              'content': 'أنت مساعد روحي ذكي يقدم الإلهام والدعم النفسي بطريقة إسلامية. '
-                  'ركز على الأمل والإيمان والصبر. استجب باللغة العربية.',
-            },
-            {
-              'role': 'user',
-              'content': prompt,
-            },
-          ],
-          'temperature': 0.8,
-          'max_tokens': 150,
-        }),
+      final url = Uri.parse(
+        'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=$targetLang&dt=t&q=${Uri.encodeComponent(text)}',
       );
-
+      final http.Response response = await http.get(url);
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return data['choices'][0]['message']['content'] ?? 'تذكّر أن الله معك دائماً. 🤲';
-      } else {
-        return 'عذراً، حدث خطأ. حاول مرة أخرى. 🙏';
+        final data = json.decode(response.body);
+        return (data[0] as List).map((e) => e[0] as String).join();
       }
     } catch (e) {
-      debugPrint('Error calling OpenAI API: $e');
-      return 'استعن بالله ولا تعجز. 💪';
+      debugPrint('Translation error: $e');
     }
+    return text;
   }
 }

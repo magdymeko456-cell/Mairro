@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../services/ai_service.dart';  
 import '../../services/tts_service.dart';  
 import '../../services/database_service.dart';  
+import '../../services/language_service.dart';
   
 class StoriesScreen extends StatefulWidget {  
   const StoriesScreen({super.key});  
@@ -30,7 +31,7 @@ class _StoriesScreenState extends State<StoriesScreen> with TickerProviderStateM
   @override  
   void initState() {  
     super.initState();  
-    _tabController = TabController(length: 4, vsync: this);  
+    _tabController = TabController(length: 4, vsync: this); // 4 tabs now
     _loadData();  
   }  
   
@@ -45,7 +46,8 @@ class _StoriesScreenState extends State<StoriesScreen> with TickerProviderStateM
     final db = Provider.of<DatabaseService>(context, listen: false);  
     await db.loadAllData();  
     setState(() {  
-      _hadiths = List.from(db.hadiths)..shuffle();  
+      // Hadiths are now ordered, not shuffled, as requested
+      _hadiths = List.from(db.hadiths); 
       _stories = [  
         ...db.quranStories.map((e) => {...e, 'category': 'قصص قرآنية'}),  
         ...db.prophetStories.map((e) => {...e, 'category': 'قصص الأنبياء'}),  
@@ -154,15 +156,17 @@ class _StoriesScreenState extends State<StoriesScreen> with TickerProviderStateM
         title: const Text('أحاديث وقصص وإلهام', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),  
         backgroundColor: const Color(0xFF0D1B2A),  
         centerTitle: true,  
+        iconTheme: const IconThemeData(color: Colors.white),
         bottom: TabBar(  
           controller: _tabController,  
           indicatorColor: Colors.amber,  
           labelColor: Colors.amber,  
           unselectedLabelColor: Colors.white70,  
+          isScrollable: true,
           tabs: const [  
             Tab(text: 'أحاديث'),  
             Tab(text: 'قصص'),  
-            Tab(text: 'أسباب النزول'),  
+            Tab(text: 'أسباب النزول'),
             Tab(text: 'إلهام AI'),  
           ],  
         ),  
@@ -181,7 +185,7 @@ class _StoriesScreenState extends State<StoriesScreen> with TickerProviderStateM
                 children: [  
                   _buildHadithsTab(),  
                   _buildStoriesTab(),  
-                  _buildRevelationTab(),  
+                  _buildAsbabTab(),
                   _buildInspirationTab(),  
                 ],  
               )  
@@ -258,143 +262,37 @@ class _StoriesScreenState extends State<StoriesScreen> with TickerProviderStateM
       ],  
     );  
   }  
-  
-  Widget _buildRevelationTab() {  
-    return ListView.builder(  
-      padding: const EdgeInsets.all(16),  
-      itemCount: _stories.length,  
-      itemBuilder: (context, index) {  
-        final story = _stories[index];  
-        return _buildRevelationCard(story);  
-      },  
-    );  
-  }  
-  
-  Widget _buildRevelationCard(Map<String, dynamic> story) {  
-    final beforeRevelation = _getBeforeRevelation(story);  
-    final afterRevelation = _getAfterRevelation(story);  
-  
-    return Container(  
-      margin: const EdgeInsets.only(bottom: 20),  
-      padding: const EdgeInsets.all(20),  
-      decoration: BoxDecoration(  
-        color: Colors.white.withOpacity(0.05),  
-        borderRadius: BorderRadius.circular(20),  
-        border: Border.all(color: Colors.purple.withOpacity(0.3)),  
-        boxShadow: [  
-          BoxShadow(color: Colors.purple.withOpacity(0.05), blurRadius: 10, spreadRadius: 1)  
-        ],  
-      ),  
-      child: Column(  
-        crossAxisAlignment: CrossAxisAlignment.start,  
-        children: [  
-          Row(  
-            children: [  
-              Container(  
-                padding: const EdgeInsets.all(8),  
-                decoration: BoxDecoration(color: Colors.purple.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),  
-                child: const Icon(Icons.book, color: Colors.purple, size: 24),  
-              ),  
-              const SizedBox(width: 15),  
-              Expanded(  
-                child: Text(story['title'] ?? '', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),  
-              ),  
-            ],  
-          ),  
-          const SizedBox(height: 20),  
-          if (beforeRevelation.isNotEmpty) ...[  
-            Container(  
-              padding: const EdgeInsets.all(15),  
-              decoration: BoxDecoration(  
-                color: Colors.red.withOpacity(0.1),  
-                borderRadius: BorderRadius.circular(12),  
-                border: Border.all(color: Colors.red.withOpacity(0.3)),  
-              ),  
-              child: Column(  
-                crossAxisAlignment: CrossAxisAlignment.start,  
-                children: [  
-                  Row(  
-                    children: [  
-                      const Icon(Icons.arrow_downward, color: Colors.red, size: 20),  
-                      const SizedBox(width: 8),  
-                      const Text('قبل النزول', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 16)),  
-                    ],  
-                  ),  
-                  const SizedBox(height: 10),  
-                  Text(beforeRevelation, style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.6)),  
-                ],  
-              ),  
-            ),  
-            const SizedBox(height: 15),  
-          ],  
-          if (afterRevelation.isNotEmpty) ...[  
-            Container(  
-              padding: const EdgeInsets.all(15),  
-              decoration: BoxDecoration(  
-                color: Colors.green.withOpacity(0.1),  
-                borderRadius: BorderRadius.circular(12),  
-                border: Border.all(color: Colors.green.withOpacity(0.3)),  
-              ),  
-              child: Column(  
-                crossAxisAlignment: CrossAxisAlignment.start,  
-                children: [  
-                  Row(  
-                    children: [  
-                      const Icon(Icons.arrow_upward, color: Colors.green, size: 20),  
-                      const SizedBox(width: 8),  
-                      const Text('بعد النزول', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 16)),  
-                    ],  
-                  ),  
-                  const SizedBox(height: 10),  
-                  Text(afterRevelation, style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.6)),  
-                ],  
-              ),  
-            ),  
-          ],  
-        ],  
-      ),  
-    );  
-  }  
-  
-  String _getBeforeRevelation(Map<String, dynamic> story) {  
-    final title = story['title']?.toLowerCase() ?? '';  
-      
-    if (title.contains('يوسف')) {  
-      return 'كانت الأحلام في المجتمع العربي الجاهلي تُعتبر من الكهانة والسحر، وكان الناس يستهزئون بالرائي ويتهمونه بالكذب أو الجنون.';  
-    } else if (title.contains('مريم')) {  
-      return 'كانت المرأة في المجتمع العربي تُعتبر عاراً إذا أنجبت بنتاً، وكانوا يئدون البنات خجلاً.';  
-    } else if (title.contains('إبراهيم')) {  
-      return 'كان الناس يعبدون الأصنام والكواكب، وكان إبراهيم الوحيد الذي يبحث عن الحقيقة.';  
-    } else if (title.contains('موسى')) {  
-      return 'كان بنو إسرائيل يعيشون تحت ظلم فرعون واستعباده، وكانوا يُقتل أبناؤهم وتُستحيا نساؤهم.';  
-    } else if (title.contains('عيسى')) {  
-      return 'كان بنو إسرائيل قد انحرفوا عن شريعة موسى، وكانوا ينتظرون المخلص.';  
-    } else if (title.contains('محمد')) {  
-      return 'كانت الجزيرة العربية في جاهلية عميقة، يعبدون الأصنام ويشربون الخمر ويئدون البنات.';  
-    }  
-      
-    return 'سيتم إضافة معلومات أسباب النزول لهذه القصة قريباً.';  
-  }  
-  
-  String _getAfterRevelation(Map<String, dynamic> story) {  
-    final title = story['title']?.toLowerCase() ?? '';  
-      
-    if (title.contains('يوسف')) {  
-      return 'أصبحت الأحلام وسيلة من وسائل الوحي الإلهي، وأصبح تفسير الأحلام علماً شرعياً يعتمد على الإيمان واليقين.';  
-    } else if (title.contains('مريم')) {  
-      return 'أكرم الإسلام المرأة ورفع شأنها، وجعل الجنة تحت أقدام الأمهات.';  
-    } else if (title.contains('إبراهيم')) {  
-      return 'أصبح التوحيد هو أساس الدين، وأصبح إبراهيم أبا الأنبياء جميعاً.';  
-    } else if (title.contains('موسى')) {  
-      return 'أنقذ الله بني إسرائيل من ظلم فرعون، وأعزهم بعد ذل.';  
-    } else if (title.contains('عيسى')) {  
-      return 'جاء عيسى ليتمم شريعة موسى وليدعو إلى التوحيد والرحمة.';  
-    } else if (title.contains('محمد')) {  
-      return 'أخرج الله بهذه الأمة من الظلمات إلى النور، وحولهم من أمة أمية إلى خير أمة أخرجت للناس.';  
-    }  
-      
-    return 'سيتم إضافة معلومات أسباب النزول لهذه القصة قريباً.';  
-  }  
+
+  Widget _buildAsbabTab() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        _buildContentCard(
+          title: 'سورة البقرة - آية 115',
+          content: 'وَلِلَّهِ الْمَشْرِقُ وَالْمَغْرِبُ ۚ فَأَيْنَمَا تُوَلُّوا فَثَمَّ وَجْهُ اللَّهِ ۚ إِنَّ اللَّهَ وَاسِعٌ عَلِيمٌ',
+          subtitle: 'نزلت في صلاة التطوع على الراحلة في السفر حيثما توجهت، وقيل نزلت فيمن عميت عليهم القبلة فصلوا إلى جهات مختلفة.',
+          icon: Icons.menu_book,
+          color: Colors.tealAccent,
+        ),
+        _buildContentCard(
+          title: 'سورة الضحى',
+          content: 'وَالضُّحَىٰ * وَاللَّيْلِ إِذَا سَجَىٰ * مَا وَدَّعَكَ رَبُّكَ وَمَا قَلَىٰ',
+          subtitle: 'نزلت حين فتر الوحي عن النبي صلى الله عليه وسلم، فقال المشركون: قد ودعه ربه وقلاه، فأنزل الله هذه السورة تكذيباً لهم.',
+          icon: Icons.menu_book,
+          color: Colors.tealAccent,
+        ),
+        Center(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Text(
+              "سيتم عرض كافة أسباب النزول بالترتيب المصحفي قريباً",
+              style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12),
+            ),
+          ),
+        )
+      ],
+    );
+  }
   
   Widget _buildInspirationTab() {  
     return SingleChildScrollView(  
@@ -495,12 +393,9 @@ class _StoriesScreenState extends State<StoriesScreen> with TickerProviderStateM
         margin: const EdgeInsets.only(bottom: 20),  
         padding: const EdgeInsets.all(20),  
         decoration: BoxDecoration(  
-          color: Colors.white.withOpacity(0.05),  
+          color: color.withOpacity(0.1),  
           borderRadius: BorderRadius.circular(20),  
           border: Border.all(color: color.withOpacity(0.3)),  
-          boxShadow: [  
-            BoxShadow(color: color.withOpacity(0.05), blurRadius: 10, spreadRadius: 1)  
-          ],  
         ),  
         child: Column(  
           crossAxisAlignment: CrossAxisAlignment.start,  
@@ -508,56 +403,48 @@ class _StoriesScreenState extends State<StoriesScreen> with TickerProviderStateM
             Row(  
               children: [  
                 Container(  
-                  padding: const EdgeInsets.all(8),  
-                  decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),  
+                  padding: const EdgeInsets.all(10),  
+                  decoration: BoxDecoration(  
+                    color: color.withOpacity(0.2),  
+                    borderRadius: BorderRadius.circular(12),  
+                  ),  
                   child: Icon(icon, color: color, size: 24),  
                 ),  
-                const SizedBox(width: 15),  
+                const SizedBox(width: 12),  
                 Expanded(  
-                  child: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),  
+                  child: Text(  
+                    title,  
+                    style: TextStyle(  
+                      color: color,  
+                      fontSize: 18,  
+                      fontWeight: FontWeight.bold,  
+                    ),  
+                  ),  
                 ),  
+                if (showListenBtn)  
+                  IconButton(  
+                    icon: const Icon(Icons.volume_up, color: Colors.blueAccent),  
+                    onPressed: () {  
+                      Provider.of<TTSService>(context, listen: false).speak(content);
+                    },  
+                  ),  
               ],  
             ),  
             const SizedBox(height: 12),  
-            Text(subtitle, style: TextStyle(color: color.withOpacity(0.8), fontSize: 13, fontWeight: FontWeight.w500)),  
-            const SizedBox(height: 15),  
             Text(  
               content,  
-              style: TextStyle(  
-                color: Colors.white.withOpacity(0.9),   
-                fontSize: isHadith ? 20 : 16,  
-                height: 1.6,  
-                fontWeight: isHadith ? FontWeight.w500 : FontWeight.normal,  
-              ),  
-              textDirection: TextDirection.rtl,  
+              style: const TextStyle(color: Colors.white, fontSize: 16, height: 1.5),  
+              textAlign: TextAlign.right,  
             ),  
-            const SizedBox(height: 20),  
-            Row(  
-              mainAxisAlignment: MainAxisAlignment.end,  
-              children: [  
-                if (showVideoBtn)  
-                  TextButton.icon(  
-                    onPressed: () {  
-                      ScaffoldMessenger.of(context).showSnackBar(  
-                        const SnackBar(content: Text('سيتم توليد فيديو مبهر مدته 10-15 دقيقة (نسخة برو)')),  
-                      );  
-                    },  
-                    icon: const Icon(Icons.movie_creation, color: Colors.redAccent),  
-                    label: const Text('مشاهدة', style: TextStyle(color: Colors.redAccent)),  
-                  ),  
-                if (showListenBtn)  
-                  TextButton.icon(  
-                    onPressed: () {  
-                      Provider.of<TTSService>(context, listen: false).speak(content);  
-                    },  
-                    icon: const Icon(Icons.volume_up, color: Colors.blueAccent),  
-                    label: const Text('استماع', style: TextStyle(color: Colors.blueAccent)),  
-                  ),  
-              ],  
+            const SizedBox(height: 8),  
+            Text(  
+              subtitle,  
+              style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 13),  
+              textAlign: TextAlign.right,  
             ),  
           ],  
         ),  
       ),  
     );  
   }  
-}  
+}

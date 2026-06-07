@@ -7,6 +7,9 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart';
 import 'document_lens.dart';
 import '../../services/ai_service.dart';
+import '../../services/language_service.dart';
+import '../../services/premium_verification_service.dart';
+import 'package:provider/provider.dart';
 
 class DocumentTranslationScreen extends StatefulWidget {
   const DocumentTranslationScreen({super.key});
@@ -45,6 +48,15 @@ class _DocumentTranslationScreenState extends State<DocumentTranslationScreen> w
       begin: const Offset(1.0, 0.0),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic));
+    _loadLastLanguage();
+  }
+
+  Future<void> _loadLastLanguage() async {
+    final langService = Provider.of<LanguageService>(context, listen: false);
+    final lastLang = await langService.getLanguageForScreen('document');
+    if (lastLang != null && _languages.containsKey(lastLang)) {
+      setState(() => _selectedLanguage = lastLang);
+    }
   }
 
   @override
@@ -73,7 +85,7 @@ class _DocumentTranslationScreenState extends State<DocumentTranslationScreen> w
     setState(() => _isProcessing = true);
     try {
       final inputImage = InputImage.fromFile(_selectedImage!);
-      // Try to recognize text with both Latin and Arabic support if possible
+      // Use both Latin and Arabic support if possible
       final textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
       final RecognizedText recognizedText = await textRecognizer.processImage(inputImage);
       
@@ -101,8 +113,19 @@ class _DocumentTranslationScreenState extends State<DocumentTranslationScreen> w
 
   Future<void> _translateDocument() async {
     if (_extractedText.isEmpty) return;
+    
+    // Check for free limit: 5 pages (mocked by character length for this demo)
+    final isPremium = Provider.of<PremiumVerificationService>(context, listen: false).isPremium;
+    if (!isPremium && _extractedText.length > 5000) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('النسخة العادية تترجم حتى 5 صفحات فقط. يرجى الترقية للبرو.'))
+      );
+      return;
+    }
+
     setState(() => _isProcessing = true);
     try {
+      // 3 seconds delay as requested
       await Future.delayed(const Duration(seconds: 3));
       final url = Uri.parse('https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=$_selectedLanguage&dt=t&q=${Uri.encodeComponent(_extractedText)}');
       final response = await http.get(url);
@@ -125,6 +148,7 @@ class _DocumentTranslationScreenState extends State<DocumentTranslationScreen> w
         title: const Text('مستندات وعدسة', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: const Color(0xFF0D1B2A),
         centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Stack(
         children: [
@@ -140,7 +164,7 @@ class _DocumentTranslationScreenState extends State<DocumentTranslationScreen> w
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
-                  // Lens Button (New)
+                  // Lens Button
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
@@ -177,7 +201,11 @@ class _DocumentTranslationScreenState extends State<DocumentTranslationScreen> w
                         decoration: BoxDecoration(color: Colors.blueAccent, borderRadius: BorderRadius.circular(12)),
                         child: IconButton(
                           icon: const Icon(Icons.search, color: Colors.white),
-                          onPressed: () {},
+                          onPressed: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('جاري جلب الملف من الرابط...'))
+                            );
+                          },
                         ),
                       ),
                     ],
@@ -219,7 +247,11 @@ class _DocumentTranslationScreenState extends State<DocumentTranslationScreen> w
                             value: e.key, 
                             child: Text(e.value, style: const TextStyle(color: Colors.white, fontSize: 12))
                           )).toList(),
-                          onChanged: (v) => setState(() => _selectedLanguage = v!),
+                          onChanged: (v) {
+                            setState(() => _selectedLanguage = v!);
+                            Provider.of<LanguageService>(context, listen: false)
+                                .saveLanguageForScreen('document', v!);
+                          },
                         ),
                       ),
                     ),
@@ -246,7 +278,7 @@ class _DocumentTranslationScreenState extends State<DocumentTranslationScreen> w
                       padding: const EdgeInsets.only(top: 8),
                       child: Text(
                         'تم استخراج النص. اضغط ترجمة للمتابعة',
-                        style: TextStyle(color: Colors.greenAccent.withValues(alpha: 0.7), fontSize: 13),
+                        style: TextStyle(color: Colors.greenAccent.withOpacity(0.7), fontSize: 13),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -292,16 +324,23 @@ class _DocumentTranslationScreenState extends State<DocumentTranslationScreen> w
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             FloatingActionButton(
-                              heroTag: 'share_btn',
+                              heroTag: 'share_doc_btn',
                               backgroundColor: Colors.blueAccent,
                               child: const Icon(Icons.share, color: Colors.white),
                               onPressed: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('المستند المترجم لا يحفظ إلا في النسخة المدفوعة. تم التوقيع بواسطة ميرور سكربيون.'),
-                                    backgroundColor: Colors.blue,
-                                  )
-                                );
+                                final isPremium = Provider.of<PremiumVerificationService>(context, listen: false).isPremium;
+                                if (!isPremium) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('المستند المترجم لا يحفظ إلا في النسخة المدفوعة. تم التوقيع بواسطة ميرور سكربيون.'),
+                                      backgroundColor: Colors.blue,
+                                    )
+                                  );
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('جاري حفظ ومشاركة المستند (نسخة برو)...'))
+                                  );
+                                }
                               },
                             ),
                           ],
@@ -340,7 +379,7 @@ class _DocumentTranslationScreenState extends State<DocumentTranslationScreen> w
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(4),
-        boxShadow: [const BoxShadow(color: Colors.black45, blurRadius: 15)],
+        boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 15)],
       ),
       child: Stack(
         children: [
@@ -355,8 +394,8 @@ class _DocumentTranslationScreenState extends State<DocumentTranslationScreen> w
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.black,
-                      fontSize: 32, // Large as requested
-                      fontWeight: FontWeight.bold
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
@@ -366,7 +405,7 @@ class _DocumentTranslationScreenState extends State<DocumentTranslationScreen> w
             child: Text(
               text,
               style: TextStyle(color: textColor, fontSize: 16, height: 1.5),
-              textDirection: TextDirection.rtl,
+              textAlign: TextAlign.right,
             ),
           ),
         ],

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';  
 import 'package:shared_preferences/shared_preferences.dart';  
 import 'package:provider/provider.dart';  
+import 'package:image_picker/image_picker.dart';  
 import '../../services/tts_service.dart';  
 import '../../services/floating_bubble_service.dart';  
 import '../../services/premium_verification_service.dart';  
+import '../../services/background_service.dart';  
+import '../../services/language_download_service.dart';  
 import '../about/about_app_screen.dart';  
 import '../../core/theme/theme_provider.dart';  
 import 'package:flutter/services.dart';  
@@ -25,7 +28,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   double _bubbleOpacity = 0.8;  
   int _bubbleSize = 120;  
   bool _bubbleAutoTranslate = true;  
-  final TextEditingController _codeController = TextEditingController();  
   
   final List<Map<String, String>> _voices = [  
     {'id': 'voice_1_female', 'name': 'سلمى'},  
@@ -39,12 +41,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {  
     super.initState();  
     _loadSettings();  
-  }  
-  
-  @override  
-  void dispose() {  
-    _codeController.dispose();  
-    super.dispose();  
   }  
   
   Future<void> _loadSettings() async {  
@@ -95,14 +91,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [  
             // Display Settings  
             _buildSectionTitle('عرض التطبيق'),  
-              _buildSettingTile(  
-                'الوضع المظلم',  
-                'استخدم الوضع المظلم لحماية العينين',  
-                Provider.of<ThemeProvider>(context).isDarkMode,  
-                (value) {  
-                  Provider.of<ThemeProvider>(context, listen: false).toggleTheme(value);  
-                },  
-              ),  
+            _buildSettingTile(  
+              'الوضع المظلم',  
+              'استخدم الوضع المظلم لحماية العينين',  
+              Provider.of<ThemeProvider>(context).isDarkMode,  
+              (value) {  
+                Provider.of<ThemeProvider>(context, listen: false).toggleTheme(value);  
+              },  
+            ),  
+            const SizedBox(height: 20),  
+  
+            // Background Settings  
+            _buildSectionTitle('🎨 تخصيص الواجهة'),  
+            _buildBackgroundTile(),  
             const SizedBox(height: 20),  
   
             // Notification Settings  
@@ -114,15 +115,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               (value) {  
                 setState(() => _notificationsEnabled = value);  
                 _saveSetting('notificationsEnabled', value);  
-              },  
-            ),  
-            _buildSettingTile(  
-              'الأصوات',  
-              'تشغيل أصوات الإشعارات والتنبيهات',  
-              _soundEnabled,  
-              (value) {  
-                setState(() => _soundEnabled = value);  
-                _saveSetting('soundEnabled', value);  
               },  
             ),  
             const SizedBox(height: 20),  
@@ -168,7 +160,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       }  
                       setState(() => _selectedVoice = value);  
                       _saveSetting('selectedVoice', value);  
-                      // Update TTS Service  
                       Provider.of<TTSService>(context, listen: false).setVoice(value);  
                     }  
                   },  
@@ -178,7 +169,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 20),  
   
             // Floating Bubble Settings  
-            _buildSectionTitle('🫧 الفقاعة العائمة (مفتاح فتح وغلق)'),  
+            _buildSectionTitle('🫧 الفقاعة العائمة'),  
             _buildSettingTile(  
               'تفعيل الفقاعة العائمة',  
               'ترجمة فورية مع فقاعة عائمة فوق التطبيقات',  
@@ -186,7 +177,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               (value) async {  
                 setState(() => _bubbleEnabled = value);  
                 _saveSetting('bubble_enabled', value);  
-                // Toggle Bubble Service  
                 await Provider.of<FloatingBubbleService>(context, listen: false).toggleBubble(context, value);  
               },  
             ),  
@@ -197,25 +187,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _saveSetting('bubble_opacity', value);  
                 Provider.of<FloatingBubbleService>(context, listen: false).setOpacity(value);  
               }),  
-              const SizedBox(height: 12),  
-              _buildSliderTile('الحجم', _bubbleSize.toDouble(), 60, 200, (value) {  
-                setState(() => _bubbleSize = value.toInt());  
-                _saveSetting('bubble_size', value.toInt());  
-                Provider.of<FloatingBubbleService>(context, listen: false).setSize(value.toInt());  
-              }),  
-              const SizedBox(height: 12),  
-              _buildSettingTile(  
-                'الترجمة التلقائية',  
-                'ترجم النصوص تلقائياً عند النسخ',  
-                _bubbleAutoTranslate,  
-                (value) {  
-                  setState(() => _bubbleAutoTranslate = value);  
-                  _saveSetting('bubble_auto_translate', value);  
-                  Provider.of<FloatingBubbleService>(context, listen: false).toggleAutoTranslate(value);  
-                },  
-              ),  
             ],  
             const SizedBox(height: 20),  
+  
+            // Language Download Settings (Premium Only)  
+            if (_isPremium) ...[  
+              _buildSectionTitle('🌍 تنزيل اللغات أوفلاين (برو)'),  
+              _buildLanguageDownloadTile(),  
+              const SizedBox(height: 20),  
+            ],  
   
             // Premium Section  
             if (!_isPremium)  
@@ -226,45 +206,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   
             // About Section  
             _buildSectionTitle('عن التطبيق'),  
-            GestureDetector(  
-              onTap: () {  
-                Navigator.push(  
-                  context,  
-                  MaterialPageRoute(builder: (context) => const AboutAppScreen()),  
-                );  
-              },  
-              child: Container(  
-                padding: const EdgeInsets.all(12),  
-                margin: const EdgeInsets.only(bottom: 8),  
-                decoration: BoxDecoration(  
-                  color: Colors.blue.withOpacity(0.1),  
-                  borderRadius: BorderRadius.circular(12),  
-                  border: Border.all(color: Colors.blue.withOpacity(0.3)),  
-                ),  
-                child: Row(  
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,  
-                  children: [  
-                    const Expanded(  
-                      child: Column(  
-                        crossAxisAlignment: CrossAxisAlignment.start,  
-                        children: [  
-                          Text(  
-                            'عن التطبيق والإهداء',  
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),  
-                          ),  
-                          SizedBox(height: 4),  
-                          Text(  
-                            'نبذة عن التطبيق وكلمة إهداء',  
-                            style: TextStyle(color: Colors.white70, fontSize: 12),  
-                          ),  
-                        ],  
-                      ),  
-                    ),  
-                    Icon(Icons.arrow_forward_ios, color: Colors.blue.shade300, size: 16),  
-                  ],  
-                ),  
-              ),  
-            ),  
+            _buildAboutTile(),
             const SizedBox(height: 20),  
   
             // Footer  
@@ -281,11 +223,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),  
                   const SizedBox(height: 4),  
                   Text(  
-                    'حيث تُصنع البدايات',  
+                    'v2.0 Stable Build',  
                     style: TextStyle(  
                       color: Colors.white.withOpacity(0.3),  
-                      fontSize: 12,  
-                      fontStyle: FontStyle.italic,  
+                      fontSize: 10,  
                     ),  
                   ),  
                 ],  
@@ -334,7 +275,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(height: 4),  
                 Text(  
                   subtitle,  
-                  style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12),  
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),  
                 ),  
               ],  
             ),  
@@ -342,7 +283,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Switch(  
             value: value,  
             onChanged: onChanged,  
-            activeColor: Colors.blue,  
+            activeColor: Colors.blueAccent,  
           ),  
         ],  
       ),  
@@ -352,44 +293,130 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildSliderTile(String title, double value, double min, double max, Function(double) onChanged) {  
     return Container(  
       padding: const EdgeInsets.all(12),  
-      margin: const EdgeInsets.only(bottom: 8),  
       decoration: BoxDecoration(  
         color: Colors.white.withOpacity(0.05),  
         borderRadius: BorderRadius.circular(12),  
-        border: Border.all(color: Colors.white.withOpacity(0.1)),  
       ),  
       child: Column(  
         crossAxisAlignment: CrossAxisAlignment.start,  
         children: [  
-          Row(  
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,  
-            children: [  
-              Text(  
-                title,  
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),  
-              ),  
-              Text(  
-                value.toStringAsFixed(2),  
-                style: TextStyle(color: Colors.blue.shade300, fontWeight: FontWeight.bold),  
-              ),  
-            ],  
-          ),  
-          const SizedBox(height: 8),  
+          Text(title, style: const TextStyle(color: Colors.white70, fontSize: 12)),  
           Slider(  
             value: value,  
             min: min,  
             max: max,  
-            activeColor: Colors.blue,  
-            inactiveColor: Colors.white.withOpacity(0.2),  
             onChanged: onChanged,  
+            activeColor: Colors.blueAccent,  
           ),  
         ],  
       ),  
     );  
   }  
   
+  Widget _buildBackgroundTile() {  
+    return Container(  
+      padding: const EdgeInsets.all(12),  
+      decoration: BoxDecoration(  
+        color: Colors.white.withOpacity(0.05),  
+        borderRadius: BorderRadius.circular(12),  
+      ),  
+      child: Row(  
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,  
+        children: [  
+          const Text('تغيير خلفية الكروت', style: TextStyle(color: Colors.white)),  
+          Row(  
+            children: [  
+              IconButton(  
+                icon: const Icon(Icons.image, color: Colors.blueAccent),  
+                onPressed: () async {
+                  await Provider.of<BackgroundService>(context, listen: false).pickBackground();
+                },  
+              ),  
+              IconButton(  
+                icon: const Icon(Icons.restore, color: Colors.redAccent),  
+                onPressed: () async {
+                  await Provider.of<BackgroundService>(context, listen: false).removeBackground();
+                },  
+              ),  
+            ],  
+          ),  
+        ],  
+      ),  
+    );  
+  }  
+
+  Widget _buildLanguageDownloadTile() {
+    final languageService = Provider.of<LanguageDownloadService>(context);
+    final downloadedLanguages = languageService.downloadedLanguages;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.green.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.green.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('اللغات المُنزلة للعمل بدون إنترنت:', style: TextStyle(color: Colors.white70, fontSize: 12)),
+          const SizedBox(height: 8),
+          if (downloadedLanguages.isEmpty)
+            const Text('لا توجد لغات منزلة', style: TextStyle(color: Colors.white24, fontSize: 12))
+          else
+            Wrap(
+              spacing: 8,
+              children: downloadedLanguages.keys.map((l) => Chip(label: Text(l), onDeleted: () => languageService.deleteLanguage(l))).toList(),
+            ),
+          const SizedBox(height: 12),
+          ElevatedButton(
+            onPressed: () => _showLanguageDownloadDialog(),
+            child: const Text('تنزيل لغة جديدة'),
+          )
+        ],
+      ),
+    );
+  }
+
+  void _showLanguageDownloadDialog() {
+    final langs = ['العربية', 'English', 'Français', 'Español', 'Deutsch'];
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('اختر لغة'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: langs.map((l) => ListTile(title: Text(l), onTap: () {
+            Provider.of<LanguageDownloadService>(context, listen: false).downloadLanguage(l);
+            Navigator.pop(ctx);
+          })).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAboutTile() {
+    return GestureDetector(
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AboutAppScreen())),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.blue.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('عن التطبيق والإهداء', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 16),
+          ],
+        ),
+      ),
+    );
+  }
+  
   Widget _buildPremiumCard() {  
     final premiumService = Provider.of<PremiumVerificationService>(context);  
+    final TextEditingController _codeController = TextEditingController();  
   
     return Container(  
       padding: const EdgeInsets.all(20),  
@@ -409,28 +436,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
             children: [  
               Icon(Icons.workspace_premium, color: Colors.amber, size: 28),  
               SizedBox(width: 12),  
-              Text('الترقية للنسخة الاحترافية (PRO)', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),  
+              Text('تفعيل النسخة البرو (PRO)', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),  
             ],  
           ),  
-          const SizedBox(height: 16),  
-          const Text('استمتع بجميع الميزات: ترجمة غير محدودة، توليد قصص فيديو، نسخ الصوت، وحفظ المستندات.', style: TextStyle(color: Colors.white70, fontSize: 13)),  
           const SizedBox(height: 20),  
             
-          // Device ID Section  
-          const Text('معرف الجهاز الخاص بك (مُشفر):', style: TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.bold)),  
+          const Text('معرف الجهاز (ID):', style: TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.bold)),  
           const SizedBox(height: 8),  
           Container(  
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),  
             decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(10)),  
             child: Row(  
               children: [  
-                Expanded(  
-                  child: Text(  
-                    premiumService.encryptedDeviceId,  
-                    style: const TextStyle(color: Colors.white, fontSize: 12, fontFamily: 'monospace'),  
-                    overflow: TextOverflow.ellipsis,  
-                  ),  
-                ),  
+                Expanded(child: Text(premiumService.encryptedDeviceId, style: const TextStyle(color: Colors.white, fontSize: 11, fontFamily: 'monospace'))),  
                 IconButton(  
                   icon: const Icon(Icons.copy, color: Colors.amber, size: 20),  
                   onPressed: () {  
@@ -443,18 +461,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),  
             
           const SizedBox(height: 20),  
-          const Text('أدخل كود التفعيل:', style: TextStyle(color: Colors.white70, fontSize: 14)),  
+          const Text('ألصق كود التفعيل:', style: TextStyle(color: Colors.white70, fontSize: 14)),  
           const SizedBox(height: 8),  
-          TextField(  
-            controller: _codeController,  
-            style: const TextStyle(color: Colors.white),  
-            decoration: InputDecoration(  
-              hintText: 'ألصق كود التفعيل هنا',  
-              hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),  
-              filled: true,  
-              fillColor: Colors.black26,  
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),  
-            ),  
+          Row(
+            children: [
+              Expanded(
+                child: TextField(  
+                  controller: _codeController,  
+                  style: const TextStyle(color: Colors.white),  
+                  decoration: InputDecoration(  
+                    hintText: 'باتش التفعيل...',  
+                    hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),  
+                    filled: true,  
+                    fillColor: Colors.black26,  
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),  
+                  ),  
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.paste, color: Colors.amber),
+                onPressed: () async {
+                  final data = await Clipboard.getData('text/plain');
+                  if (data != null) _codeController.text = data.text!;
+                },
+              ),
+            ],
           ),  
           const SizedBox(height: 16),  
           SizedBox(  
@@ -464,58 +496,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 final success = await premiumService.activatePremium(_codeController.text);  
                 if (success) {  
                   setState(() => _isPremium = true);  
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('مبروك! تم تفعيل النسخة الاحترافية بنجاح')));  
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تفعيل النسخة الاحترافية بنجاح')));  
                 } else {  
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('كود التفعيل غير صحيح')));  
                 }  
               },  
-              style: ElevatedButton.styleFrom(  
-                backgroundColor: Colors.amber,  
-                foregroundColor: Colors.black,  
-                padding: const EdgeInsets.symmetric(vertical: 15),  
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),  
-              ),  
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black),  
               child: const Text('تفعيل الآن', style: TextStyle(fontWeight: FontWeight.bold)),  
             ),  
-          ),  
+          ),
+          const SizedBox(height: 20),
+          const Divider(color: Colors.white24),
+          const Text('معلومات الاتصال للحصول على الكود:', style: TextStyle(color: Colors.white54, fontSize: 12)),
+          const SizedBox(height: 8),
+          const Text('واتساب: 01017341250 / 01031680816 / 01558203456', style: TextStyle(color: Colors.white70, fontSize: 11)),
+          const Text('إيميل: dosoky.server@gmail.com', style: TextStyle(color: Colors.white70, fontSize: 11)),
         ],  
       ),  
     );  
   }  
   
   Widget _buildPremiumActiveCard() {  
-    final premiumService = Provider.of<PremiumVerificationService>(context);  
-      
     return Container(  
       padding: const EdgeInsets.all(16),  
       decoration: BoxDecoration(  
-        gradient: LinearGradient(  
-          colors: [Colors.green.shade700.withOpacity(0.2), Colors.teal.withOpacity(0.1)],  
-        ),  
+        gradient: LinearGradient(colors: [Colors.green.shade700.withOpacity(0.2), Colors.teal.withOpacity(0.1)]),  
         borderRadius: BorderRadius.circular(12),  
         border: Border.all(color: Colors.green.shade600.withOpacity(0.3)),  
       ),  
-      child: Row(  
+      child: const Row(  
         children: [  
-          Icon(Icons.verified, color: Colors.green.shade300, size: 24),  
-          const SizedBox(width: 12),  
-          Expanded(  
-            child: Column(  
-              crossAxisAlignment: CrossAxisAlignment.start,  
-              children: [  
-                const Text(  
-                  'النسخة البرو مفعلة',  
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),  
-                ),  
-                Text(  
-                  'شكراً لدعمك للتطبيق!',  
-                  style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),  
-                ),  
-              ],  
-            ),  
-          ),  
+          Icon(Icons.verified, color: Colors.green, size: 24),  
+          SizedBox(width: 12),  
+          Text('النسخة البرو مفعلة بنجاح ✅', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),  
         ],  
       ),  
     );  
   }  
-}  
+}

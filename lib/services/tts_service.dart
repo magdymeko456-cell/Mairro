@@ -6,15 +6,21 @@ class TTSService extends ChangeNotifier {
   bool _isSpeaking = false;
   bool _isPaused = false;
   String _selectedVoice = 'voice_1_female';
-  
-  // 5 voices for the app as per requirements
+
+  // الأصوات الخمسة المطلوبة
   static const List<Map<String, String>> availableVoices = [
-    {'id': 'voice_1_female', 'name': 'سلمى'},
-    {'id': 'voice_2_male', 'name': 'سيف'},
-    {'id': 'voice_3_female_warm', 'name': 'سما'},
-    {'id': 'voice_4_female_soft', 'name': 'سارة'},
-    {'id': 'voice_5_premium_ai', 'name': 'صوت المستخدم'},
+    {'id': 'voice_1_female', 'name': 'سلمى', 'type': 'نسائي هادئ'},
+    {'id': 'voice_2_male', 'name': 'سيف', 'type': 'رجالي عميق'},
+    {'id': 'voice_3_female_warm', 'name': 'سما', 'type': 'نسائي دافئ'},
+    {'id': 'voice_4_female_soft', 'name': 'سارة', 'type': 'نسائي رقيق'},
+    {'id': 'voice_5_premium_ai', 'name': 'صوت المستخدم', 'type': 'استنساخ ذكي - Pro'},
   ];
+
+  // تعيين الصوت المشترك لكل الكروت
+  static String _globalVoiceId = 'voice_1_female';
+
+  static String get globalVoiceId => _globalVoiceId;
+  static set globalVoiceId(String id) => _globalVoiceId = id;
 
   bool get isSpeaking => _isSpeaking;
   bool get isPaused => _isPaused;
@@ -28,12 +34,10 @@ class TTSService extends ChangeNotifier {
     await _flutterTts.setLanguage('ar');
     await _flutterTts.setSpeechRate(0.5);
     await _flutterTts.setPitch(1.0);
-    
     _flutterTts.setCompletionHandler(() {
       _isSpeaking = false;
       notifyListeners();
     });
-
     _flutterTts.setErrorHandler((msg) {
       _isSpeaking = false;
       debugPrint('TTS Error: $msg');
@@ -43,8 +47,7 @@ class TTSService extends ChangeNotifier {
 
   Future<void> setVoice(String voiceId) async {
     _selectedVoice = voiceId;
-    
-    // Configure based on voice type
+    _globalVoiceId = voiceId;
     switch (voiceId) {
       case 'voice_1_female': // سلمى (متزن)
         await _flutterTts.setPitch(1.0);
@@ -62,12 +65,11 @@ class TTSService extends ChangeNotifier {
         await _flutterTts.setPitch(1.4);
         await _flutterTts.setSpeechRate(0.5);
         break;
-      case 'voice_5_premium_ai':
+      case 'voice_5_premium_ai': // صوت المستخدم (Pro)
         await _flutterTts.setPitch(1.0);
         await _flutterTts.setSpeechRate(0.5);
         break;
     }
-    
     notifyListeners();
   }
 
@@ -75,16 +77,13 @@ class TTSService extends ChangeNotifier {
     if (_isSpeaking) {
       await stop();
     }
-
     _isSpeaking = true;
     notifyListeners();
-
     if (language != null) {
       await _flutterTts.setLanguage(language);
     } else {
       await _flutterTts.setLanguage('ar');
     }
-
     await _flutterTts.speak(text);
   }
 
@@ -102,7 +101,6 @@ class TTSService extends ChangeNotifier {
   }
 
   Future<void> resume() async {
-    // Note: resume behavior depends on platform
     _isPaused = false;
     notifyListeners();
   }
