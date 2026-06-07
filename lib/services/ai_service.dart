@@ -1,3 +1,8 @@
+import 'package:flutter/foundation.dart';
+import 'http: ^1.2.1' as http;
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
 import 'dart:math';
 import 'package:google_generative_ai/google_generative_ai.dart';
 
