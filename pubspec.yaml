@@ -42,7 +42,10 @@ dependencies:
   clipboard: ^0.1.3
   intl: ^0.20.2
   webview_flutter: ^4.10.0
-  dash_bubble: ^2.0.0
+  
+  # العودة للفقاعة المحلية المستقرة لحل تعارض الـ Namespace
+  dash_bubble_local:
+    path: packages/dash_bubble_local
 
 dev_dependencies:
   flutter_test:
