@@ -3,6 +3,8 @@ import 'features/home_screen.dart';
 import 'features/card4_stories/stories_screen.dart';
 
 void main() {
+  // تأمين بيئة عمل فلاتر قبل تشغيل الـ runApp لضمان استقرار الخدمات الخلفية
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const MirrorScorpionApp());
 }
 
@@ -22,10 +24,11 @@ class MirrorScorpionApp extends StatelessWidget {
         '/': (context) => const HomeScreen(),
         '/stories': (context) => const StoriesScreen(),
         
-        // تمرير الشاشات غير المرفوعة أو الناقصة مؤقتاً للشاشة الرئيسية لتفادي أخطاء الكومبايلر
-        '/translation': (context) => const HomeScreen(),
-        '/lens': (context) => const HomeScreen(),
-        '/games': (context) => const HomeScreen(),
+        // مطابقة وتأمين كافة مسارات الكروت لتفادي أخطاء الـ Navigation الصامتة
+        '/translate': (context) => const HomeScreen(),
+        '/dialogue': (context) => const HomeScreen(),
+        '/document': (context) => const HomeScreen(),
+        '/chess': (context) => const HomeScreen(),
         '/rubik': (context) => const HomeScreen(),
         '/settings': (context) => const HomeScreen(),
       },
