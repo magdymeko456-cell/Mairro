@@ -6,7 +6,6 @@ import 'package:google_generative_ai/google_generative_ai.dart';
 class AIService {
   final String _apiKey = "YOUR_GEMINI_API_KEY";
 
-  // دالة الترجمة المستقرة
   Future<String> translateText(String text, String targetLanguage) async {
     try {
       final url = Uri.parse('https://translation.api.mock/translate');
@@ -22,10 +21,9 @@ class AIService {
     }
   }
 
-  // الدالة الناقصة التي تستدعيها الشاشات لتوليد العبارات الإلهامية
-  static Future<String> generateInspiration(String prompt, String lang) async {
+  // جعل المتغيرات اختيارية بقيم افتراضية لتتوافق مع استدعاء الشاشات الفاضي
+  static Future<String> generateInspiration([String prompt = "", String lang = "ar"]) async {
     try {
-      // إرجاع نص افتراضي مستقر مؤقتاً لضمان نجاح البناء فورا
       if (lang == 'ar') {
         return "حيث تُصنع البدايات - ميرور سكوربيون";
       }
