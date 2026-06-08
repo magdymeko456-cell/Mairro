@@ -21,8 +21,8 @@ class AIService {
     }
   }
 
-  // جعل المتغيرات اختيارية بقيم افتراضية لتتوافق مع استدعاء الشاشات الفاضي
-  static Future<String> generateInspiration([String prompt = "", String lang = "ar"]) async {
+  # تعديل الميثود لتقبل المسمى الـ Named المتوقع من الشاشات لمنع أخطاء الـ Build
+  static Future<String> generateInspiration({String? userMood, String lang = "ar"}) async {
     try {
       if (lang == 'ar') {
         return "حيث تُصنع البدايات - ميرور سكوربيون";
