@@ -18,10 +18,7 @@ import 'features/card1_translation/translation_screen.dart';
 import 'features/card2_dialogue/dialogue_screen.dart';
 import 'features/card3_document/document_screen.dart';
 import 'features/card4_stories/stories_screen.dart';
-import 'features/games/chess/chess_screen.dart';
 import 'features/games/rubik_cube/rubik_cube_screen.dart';
-import 'features/card4_stories/hadith_screen.dart';
-import 'features/card4_stories/story_viewer_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -95,9 +92,7 @@ class MirrorScorpionApp extends StatelessWidget {
             '/dialogue': (context) => const DialogueTranslationScreen(),
             '/document': (context) => const DocumentTranslationScreen(),
             '/stories': (context) => const StoriesScreen(),
-            '/hadith': (context) => const HadithScreen(),
-            '/story_viewer': (context) => const StoryViewerScreen(),
-            '/chess': (context) => const ChessScreen(),
+            '/chess': (context) => // const ChessScreen(),
             '/rubik': (context) => const RubikCubeScreen(),
             '/settings': (context) => const SettingsScreen(),
             '/about': (context) => const AboutAppScreen(),
