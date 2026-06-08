@@ -58,6 +58,8 @@ jobs:
           # Build APK  
       - name: Clean Flutter Cache
         run: flutter clean
+      - name: Clean Cache
+        run: flutter clean
           flutter build apk --release  
             
           # Move output to workspace  
