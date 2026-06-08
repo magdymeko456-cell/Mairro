@@ -38,17 +38,32 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       CurvedAnimation(parent: _glowController, curve: Curves.easeInOut),
     );
 
-    // تأمين استدعاء الـ Provider بعد اكتمال رسم أول إطار للتطبيق لكسر الشاشة البيضاء
+    // تأمين الاستدعاء لحفظ الاستقرار ومنع الشاشة البيضاء
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadLanguage();
+      _initLanguageSettings();
     });
   }
 
-  void _loadLanguage() {
+  // الدالة الذكية الجديدة للتحقق من آخر لغة أو لغة الجهاز
+  void _initLanguageSettings() async {
     if (!mounted) return;
     final langService = Provider.of<LanguageService>(context, listen: false);
-    final deviceLang = langService.getDeviceLanguage();
-    setState(() => _deviceLanguage = deviceLang);
+    
+    // 1. محاولة جلب آخر لغة حفظها المستخدم من الـ SharedPreferences (لو موجودة)
+    String targetLang = langService.getSavedLanguage() ?? ''; 
+    
+    // 2. إذا لم توجد لغة محفوظة (أول مرة فتح للتطبيق)، نعتمد لغة الجهاز فوراً
+    if (targetLang.isEmpty) {
+      targetLang = langService.getDeviceLanguage();
+    }
+    
+    // 3. تطبيق اللغة وتحديث حالة الواجهة
+    setState(() {
+      _deviceLanguage = targetLang;
+    });
+    
+    // تثبيت اللغة في الخدمة لضمان عمل المايك والترجمة بها
+    langService.setLanguage(targetLang);
   }
 
   @override
