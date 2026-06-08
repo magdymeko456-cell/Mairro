@@ -20,7 +20,7 @@ jobs:
         with:  
           channel: 'stable'  
             
-      - name: Prepare Project and Build  
+      - name: Prepare Project and Clean Cache
         run: |  
           set -e  
           # Get dependencies  
@@ -55,11 +55,11 @@ jobs:
           find android -name "build.gradle*" -exec sed -i 's/compileSdk=/compileSdk = /g' {} +  
           find android -name "build.gradle*" -exec sed -i 's/targetSdk=/targetSdk = /g' {} +  
             
+          # تنظيف الكاش داخل البيئة النظيفة قبل البدء في البناء لضمان فك التعليق
+          flutter clean
+          flutter pub get
+
           # Build APK  
-      - name: Clean Flutter Cache
-        run: flutter clean
-      - name: Clean Cache
-        run: flutter clean
           flutter build apk --release  
             
           # Move output to workspace  
@@ -71,4 +71,4 @@ jobs:
         with:  
           name: mirror-scorpion-release  
           path: output_apk/app-release.apk  
-          if-no-files-found: error  
+          if-no-files-found: error
