@@ -21,7 +21,6 @@ class AIService {
     }
   }
 
-  # تعديل الميثود لتقبل المسمى الـ Named المتوقع من الشاشات لمنع أخطاء الـ Build
   static Future<String> generateInspiration({String? userMood, String lang = "ar"}) async {
     try {
       if (lang == 'ar') {
