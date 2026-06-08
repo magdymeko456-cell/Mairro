@@ -21,7 +21,8 @@ class AIService {
     }
   }
 
-  static Future<String> generateInspiration({String? userMood, String lang = "ar"}) async {
+  // إضافة المتغير المسمى context ليتوافق تماماً مع استدعاء شاشاتك
+  static Future<String> generateInspiration({String? userMood, String? context, String lang = "ar"}) async {
     try {
       if (lang == 'ar') {
         return "حيث تُصنع البدايات - ميرور سكوربيون";
