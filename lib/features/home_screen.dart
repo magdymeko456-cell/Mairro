@@ -38,32 +38,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       CurvedAnimation(parent: _glowController, curve: Curves.easeInOut),
     );
 
-    // تأمين الاستدعاء لحفظ الاستقرار ومنع الشاشة البيضاء
+    // استدعاء مأمن بعد أول فريم لمطابقة اللغة وحفظها
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initLanguageSettings();
+      _alignLanguageWithOriginalService();
     });
   }
 
-  // الدالة الذكية الجديدة للتحقق من آخر لغة أو لغة الجهاز
-  void _initLanguageSettings() async {
+  void _alignLanguageWithOriginalService() async {
     if (!mounted) return;
     final langService = Provider.of<LanguageService>(context, listen: false);
     
-    // 1. محاولة جلب آخر لغة حفظها المستخدم من الـ SharedPreferences (لو موجودة)
-    String targetLang = langService.getSavedLanguage() ?? ''; 
+    // قراءة اللغة الحالية المحفوظة في الأصل (تكون 'auto' افتراضياً لو لم توجد)
+    String currentLang = langService.currentLanguage;
     
-    // 2. إذا لم توجد لغة محفوظة (أول مرة فتح للتطبيق)، نعتمد لغة الجهاز فوراً
-    if (targetLang.isEmpty) {
-      targetLang = langService.getDeviceLanguage();
+    // إذا كانت 'auto' (أول مرة فتح للتطبيق أو تفعيل التلقائي)، نعتمد لغة نظام الجهاز فوراً
+    if (currentLang == 'auto') {
+      currentLang = langService.getDeviceLanguage();
+      // حفظها فوراً لتبقى مستمرة معنا في المرات القادمة
+      await langService.setCurrentLanguage(currentLang);
     }
     
-    // 3. تطبيق اللغة وتحديث حالة الواجهة
     setState(() {
-      _deviceLanguage = targetLang;
+      _deviceLanguage = currentLang;
     });
-    
-    // تثبيت اللغة في الخدمة لضمان عمل المايك والترجمة بها
-    langService.setLanguage(targetLang);
   }
 
   @override
@@ -335,7 +332,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       WatermarkText(text: "Mirror Scorpion"),
                       SizedBox(height: 5),
                       Text(
-                        "v1.2.0 Build Stable #4 - جميع الأنظمة نشطة",
+                        "v1.2.0 Build Stable #5 - نظام تهيئة اللغة آمن",
                         style: TextStyle(color: Colors.white, fontSize: 10),
                       ),
                     ],

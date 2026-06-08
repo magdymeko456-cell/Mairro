@@ -1,11 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'features/home_screen.dart';
 import 'features/card4_stories/stories_screen.dart';
+import 'services/language_service.dart';
+import 'services/floating_bubble_service.dart';
 
-void main() {
-  // تأمين بيئة عمل فلاتر قبل تشغيل الـ runApp لضمان استقرار الخدمات الخلفية
+void main() async {
+  // تأمين بيئة عمل فلاتر
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MirrorScorpionApp());
+  
+  // إنشاء النسخ وتأمين عملية الـ Initialize قبل إقلاع التطبيق
+  final languageService = LanguageService();
+  await languageService.initialize();
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider<LanguageService>.value(value: languageService),
+        ChangeNotifierProvider(create: (_) => FloatingBubbleService()),
+      ],
+      child: const MirrorScorpionApp(),
+    ),
+  );
 }
 
 class MirrorScorpionApp extends StatelessWidget {
@@ -24,7 +40,7 @@ class MirrorScorpionApp extends StatelessWidget {
         '/': (context) => const HomeScreen(),
         '/stories': (context) => const StoriesScreen(),
         
-        // مطابقة وتأمين كافة مسارات الكروت لتفادي أخطاء الـ Navigation الصامتة
+        // مسارات معتمدة ومؤمنة مؤقتاً لتفادي أخطاء الـ Router
         '/translate': (context) => const HomeScreen(),
         '/dialogue': (context) => const HomeScreen(),
         '/document': (context) => const HomeScreen(),
