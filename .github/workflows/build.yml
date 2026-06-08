@@ -56,6 +56,8 @@ jobs:
           find android -name "build.gradle*" -exec sed -i 's/targetSdk=/targetSdk = /g' {} +  
             
           # Build APK  
+      - name: Clean Flutter Cache
+        run: flutter clean
           flutter build apk --release  
             
           # Move output to workspace  
