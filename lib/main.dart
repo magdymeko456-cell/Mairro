@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'features/home_screen.dart';
-import 'features/card1_translation/translation_screen.dart';
 import 'features/card4_stories/stories_screen.dart';
 
 void main() {
@@ -21,10 +20,10 @@ class MirrorScorpionApp extends StatelessWidget {
       initialRoute: '/',
       routes: {
         '/': (context) => const HomeScreen(),
-        '/translation': (context) => TranslationScreen(), // مكتوبة بإيدينا ومن غير const
         '/stories': (context) => const StoriesScreen(),
         
-        // مسارات مؤقتة لتفادي ملفات الشاشات الناقصة في السيرفر
+        // تمرير الشاشات غير المرفوعة أو الناقصة مؤقتاً للشاشة الرئيسية لتفادي أخطاء الكومبايلر
+        '/translation': (context) => const HomeScreen(),
         '/lens': (context) => const HomeScreen(),
         '/games': (context) => const HomeScreen(),
         '/rubik': (context) => const HomeScreen(),
