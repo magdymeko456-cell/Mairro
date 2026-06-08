@@ -21,10 +21,10 @@ class MirrorScorpionApp extends StatelessWidget {
       initialRoute: '/',
       routes: {
         '/': (context) => const HomeScreen(),
-        '/translation': (context) => TranslationScreen(),
+        '/translation': (context) => TranslationScreen(), // مكتوبة بإيدينا ومن غير const
         '/stories': (context) => const StoriesScreen(),
         
-        // المسارات التالية ممررة مؤقتاً للشاشة الرئيسية لأن ملفاتها غير مرفوعة بعد
+        // مسارات مؤقتة لتفادي ملفات الشاشات الناقصة في السيرفر
         '/lens': (context) => const HomeScreen(),
         '/games': (context) => const HomeScreen(),
         '/rubik': (context) => const HomeScreen(),
