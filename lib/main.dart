@@ -21,7 +21,7 @@ class MirrorScorpionApp extends StatelessWidget {
       initialRoute: '/',
       routes: {
         '/': (context) => const HomeScreen(),
-        '/translation': (context) => const TranslationScreen(),
+        '/translation': (context) => TranslationScreen(),
         '/stories': (context) => const StoriesScreen(),
         
         // المسارات التالية ممررة مؤقتاً للشاشة الرئيسية لأن ملفاتها غير مرفوعة بعد
