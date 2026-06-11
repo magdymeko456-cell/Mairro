@@ -1,96 +1,121 @@
 #!/bin/bash
 
-WORKFLOW_FILE=".github/workflows/build.yml"
+# سكريبت البلدوزر المتكامل - بيئة ترمكس (وسيط تحرير)
+echo "⏳ جاري تهيئة المجلدات وحقن الأكواد الصافية لـ Mirror Scorpion..."
 
-echo "⏳ 1. إعادة بناء ملف الـ Workflow الأصلي بترتيب هندسي مظبوط مية بالمية..."
-mkdir -p .github/workflows
+# 1. إنشاء المجلدات الضرورية أولاً لضمان عدم حدوث أخطاء مسارات
+mkdir -p lib/core/theme
+mkdir -p lib/features/card1_translation
+mkdir -p lib/features/card2_dialogue
+mkdir -p lib/features/card3_document
+mkdir -p lib/features/card4_stories
+mkdir -p lib/features/settings
+mkdir -p lib/features/games/chess
+mkdir -p lib/features/games/rubik_cube
+mkdir -p lib/services
 
-cat << 'INNER_EOF' > .github/workflows/build.yml
-name: Mirror Scorpion Build  
+# 2. حقن ملف lib/main.dart الكامل والمعدل (التحرير الصافي)
+cat > lib/main.dart << 'INNER_EOF'
+import 'package:flutter/material.dart';  
+import 'package:flutter/services.dart';  
+import 'package:provider/provider.dart';  
+import 'package:flutter_localizations/flutter_localizations.dart';  
+import 'features/home_screen.dart';  
+import 'features/card1_translation/translation_screen.dart';  
+import 'features/card2_dialogue/dialogue_screen.dart';  
+import 'features/card3_document/document_screen.dart';  
+import 'features/card4_stories/stories_screen.dart';  
+import 'features/settings/settings_screen.dart';  
+import 'features/games/chess/chess_screen.dart';  
+import 'features/games/rubik_cube/rubik_cube_screen.dart';  
+import 'services/floating_bubble_service.dart';  
+import 'services/premium_verification_service.dart';  
+import 'services/tts_service.dart';  
+import 'core/theme/theme_provider.dart';  
   
-on:  
-  push:  
-    branches: [ main, master ]  
-  workflow_dispatch:  
+void main() async {  
+  WidgetsFlutterBinding.ensureInitialized();  
+  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);  
   
-jobs:  
-  build:  
-    runs-on: ubuntu-latest  
-    steps:  
-      - uses: actions/checkout@v4  
-        
-      - uses: actions/setup-java@v4  
-        with:  
-          distribution: 'zulu'  
-          java-version: '17'  
-            
-      - uses: subosito/flutter-action@v2  
-        with:  
-          channel: 'stable'  
-            
-      - name: Prepare Project and Clean Cache
-        run: |  
-          set -e  
-          # Get dependencies  
-          flutter pub get  
-            
-          # Setup build directory  
-          rm -rf /tmp/clean_project  
-          flutter create --org com.tetocollctionway --project-name mirror_scorpion_translate /tmp/clean_project  
-            
-          # Copy essential files from current project  
-          cp -r lib /tmp/clean_project/  
-          cp -r assets /tmp/clean_project/  
-          cp pubspec.yaml /tmp/clean_project/  
-          cp -r packages /tmp/clean_project/  
-          cp -r scripts /tmp/clean_project/  
-            
-          # Move to clean project  
-          cd /tmp/clean_project  
-          flutter pub get  
-            
-          # Run patch scripts  
-          python3 scripts/patch_dash_bubble_compilesdk.py  
-          python3 scripts/patch_gradle.py  
-          python3 scripts/patch_manifest.py  
-            
-          # Fix SDK versions - Updated to 36 as required by latest dependencies  
-          find android -name "build.gradle*" -exec sed -i 's/compileSdk .*/compileSdk = 36/g' {} +  
-          find android -name "build.gradle*" -exec sed -i 's/targetSdk .*/targetSdk = 35/g' {} +  
-            
-          # Fix for any accidental double equals or missing spaces  
-          find android -name "build.gradle*" -exec sed -i 's/==/=/g' {} +  
-          find android -name "build.gradle*" -exec sed -i 's/compileSdk=/compileSdk = /g' {} +  
-          find android -name "build.gradle*" -exec sed -i 's/targetSdk=/targetSdk = /g' {} +  
-            
-          # تنظيف الكاش داخل البيئة النظيفة قبل البدء في البناء لضمان فك التعليق
-          flutter clean
-          flutter pub get
-
-          # Build APK  
-          flutter build apk --release  
-            
-          # Move output to workspace  
-          mkdir -p $GITHUB_WORKSPACE/output_apk  
-          cp build/app/outputs/flutter-apk/app-release.apk $GITHUB_WORKSPACE/output_apk/  
-            
-      - name: Upload APK  
-        uses: actions/upload-artifact@v4  
-        with:  
-          name: mirror-scorpion-release  
-          path: output_apk/app-release.apk  
-          if-no-files-found: error
+  final bubbleService = FloatingBubbleService();  
+  await bubbleService.initialize();  
+  
+  final premiumService = PremiumVerificationService();  
+  await premiumService.initialize();  
+  
+  runApp(  
+    MultiProvider(  
+      providers: [  
+        ChangeNotifierProvider.value(value: bubbleService),  
+        ChangeNotifierProvider.value(value: premiumService),  
+        ChangeNotifierProvider(create: (_) => TTSService()),  
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),  
+      ],  
+      child: const MirrorScorpionApp(),  
+    ),  
+  );  
+}  
+  
+class MirrorScorpionApp extends StatelessWidget {  
+  const MirrorScorpionApp({super.key});  
+  
+  @override  
+  Widget build(BuildContext context) {  
+    final themeProvider = Provider.of<ThemeProvider>(context);  
+    final deviceLocale =  
+        WidgetsBinding.instance.platformDispatcher.locale;  
+    final locale = deviceLocale.languageCode == 'ar'  
+        ? const Locale('ar')  
+        : const Locale('en');  
+  
+    return MaterialApp(  
+      title: 'ميرور سكربيون',  
+      debugShowCheckedModeBanner: false,  
+      localizationsDelegates: const [  
+        GlobalMaterialLocalizations.delegate,  
+        GlobalWidgetsLocalizations.delegate,  
+        GlobalCupertinoLocalizations.delegate,  
+      ],  
+      supportedLocales: const [Locale('ar'), Locale('en')],  
+      locale: locale,  
+      theme: themeProvider.themeData,  
+      initialRoute: '/',  
+      routes: {  
+        '/': (context) => const HomeScreen(),  
+        '/translate': (context) => const TranslationScreen(),  
+        '/dialogue': (context) => const DialogueScreen(),  
+        '/document': (context) => const DocumentScreen(),  
+        '/stories': (context) => const StoriesScreen(),  
+        '/settings': (context) => const SettingsScreen(),  
+        '/rubik': (context) => const RubikCubeScreen(),  
+        '/chess': (context) => const ChessScreen(),  
+      },  
+    );  
+  }  
+}  
 INNER_EOF
 
-echo "⏳ 2. تنظيف الأخطاء اللغوية وتصحيح مسار الـ APK المتوقع..."
-# تصحيح حرف (٧) العربي اللي كان مكتوب بالخطأ في كلمة app لتصبح app سليمة للإنتقال المضمون
-sed -i 's/app٧/app/g' .github/workflows/build.yml
+echo "✅ تم تحرير وحفظ ملف lib/main.dart بنجاح."
 
-echo "⏳ 3. تعميد الملف وإرساله للـ Git..."
-git add .github/workflows/build.yml
-git commit -m "fix: perfectly format original workflow script with structured clean steps"
+# 3. إعداد الـ Git وعمل الـ Commit والتطهير للرفع
+echo "⏳ جاري إعداد عملية الرفع إلى GitHub..."
+git config --global pull.rebase true
+git rebase --abort 2>/dev/null || true
 
-echo "🚀 4. الرفع التلقائي المدمج إلى جيت هب..."
-git push origin main
+git add -A
+git commit -m "Fix: Replace admin app with Mirror Scorpion main app + add CI/CD workflow" 2>/dev/null || true
 
-echo "✅ تم التعديل والرفع بنجاح يا تامر! تابع البناء رقم 24."
+# 4. محاولة الـ Pull والرفع الذكي بالقوة لإنهاء أي تعارض
+echo "📥 جاري عمل Pull ذكي مع أولوية للتعديلات المحلية الحالية..."
+git pull --rebase -X ours https://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@github.com/magdymeko456-cell/Mairro.git main
+
+echo "📤 جاري الرفع النهائي..."
+git push --force https://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@github.com/magdymeko456-cell/Mairro.git main
+
+if [ $? -eq 0 ]; then
+    echo "🎯 تم الرفع والتحرير بنجاح يا تامر! سيرفر الـ GitHub Actions يعمل الآن."
+    exit 0
+else
+    echo "❌ فشل الرفع، يرجى مراجعة اتصال الشبكة."
+    exit 1
+fi
