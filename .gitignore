@@ -22,3 +22,8 @@ local.properties
 *.swp
 *.swo
 *~
+git_force_clean.sh
+git_safe_pull.sh
+run_perfect_workflow.sh
+git_final_push.sh
+run_secure_workflow.sh
